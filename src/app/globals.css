@@ -1,26 +1,162 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* ─── Design Tokens (Tailwind v4 @theme) ─── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Krea.ai exact color palette */
+  --color-canvas:    #0a0a0a;
+  --color-surface:   #111111;
+  --color-panel:     #161616;
+  --color-border:    #222222;
+  --color-borderhov: #333333;
+  --color-accent:    #8b5cf6;
+  --color-accenthov: #7c3aed;
+  --color-accentdim: #8b5cf620;
+  --color-text:      #e5e5e5;
+  --color-textmuted: #737373;
+  --color-textsub:   #525252;
+  --color-success:   #22c55e;
+  --color-error:     #ef4444;
+  --color-warning:   #f59e0b;
+  --color-running:   #8b5cf6;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Custom animations */
+  --animate-glow-pulse:     glow-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-fade-in:        fade-in 0.15s ease-out;
+  --animate-slide-in-left:  slide-in-left 0.2s ease-out;
+  --animate-slide-in-right: slide-in-right 0.2s ease-out;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Keyframes ─── */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px 2px #8b5cf640; }
+  50%      { box-shadow: 0 0 24px 8px #8b5cf680; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Global Styles ─── */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #0a0a0a;
+  color: #e5e5e5;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar Styling ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}
+
+/* ─── React Flow Overrides ─── */
+.react-flow {
+  background: #0a0a0a !important;
+}
+
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node:active {
+  cursor: grabbing;
+}
+
+.react-flow__edge-path {
+  stroke-linecap: round;
+}
+
+.react-flow__controls {
+  background: #161616 !important;
+  border: 1px solid #222222 !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.react-flow__controls-button {
+  background: #161616 !important;
+  border: none !important;
+  border-bottom: 1px solid #222222 !important;
+  color: #e5e5e5 !important;
+  fill: #e5e5e5 !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #222222 !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__minimap {
+  background: #161616 !important;
+  border: 1px solid #222222 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* ─── Selection Box ─── */
+.react-flow__selection {
+  background: rgba(139, 92, 246, 0.08) !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+}
+
+/* ─── Prevent text selection on nodes ─── */
+.react-flow__node .nodrag {
+  cursor: text;
+}
+
+/* ─── Dot Grid Background Pattern ─── */
+.bg-dot-grid {
+  background-image: radial-gradient(circle, #ffffff12 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ─── Sonner Toast Overrides ─── */
+[data-sonner-toaster] {
+  font-family: 'Inter', system-ui, sans-serif !important;
 }

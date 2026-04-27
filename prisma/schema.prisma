@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Workflow {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String   @default("Untitled Workflow")
+  description String?
+  nodes       Json     // ReactFlow nodes array
+  edges       Json     // ReactFlow edges array
+  viewport    Json?    // { x, y, zoom }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  runs        WorkflowRun[]
+
+  @@index([userId])
+}
+
+model WorkflowRun {
+  id              String        @id @default(cuid())
+  workflowId      String
+  workflow        Workflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  userId          String
+  status          RunStatus     @default(RUNNING)
+  scope           RunScope      @default(FULL)
+  selectedNodeIds String[]      // For partial runs
+  startedAt       DateTime      @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+  nodeRuns        NodeRun[]
+
+  @@index([workflowId])
+  @@index([userId])
+}
+
+model NodeRun {
+  id            String       @id @default(cuid())
+  workflowRunId String
+  workflowRun   WorkflowRun  @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  nodeId        String
+  nodeType      String
+  nodeLabel     String
+  status        RunStatus    @default(RUNNING)
+  inputs        Json?
+  outputs       Json?
+  error         String?
+  startedAt     DateTime     @default(now())
+  completedAt   DateTime?
+  durationMs    Int?
+  triggerRunId  String?      // Trigger.dev run ID for tracking
+
+  @@index([workflowRunId])
+}
+
+enum RunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  PARTIAL
+  PENDING
+}
+
+enum RunScope {
+  FULL
+  PARTIAL
+  SINGLE
+}
