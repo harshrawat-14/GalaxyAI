@@ -25,6 +25,6 @@ export default defineConfig({
   dirs: ['./src/trigger'],
 
   build: {
-    external: ['ffmpeg-static'],
+    external: ['ffmpeg-static', 'sharp'],
   },
 })
