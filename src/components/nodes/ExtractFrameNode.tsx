@@ -8,10 +8,18 @@ import { useWorkflowStore } from '@/store/workflow-store'
 import type { ExtractFrameNodeData } from '@/types/nodes'
 import { cn } from '@/lib/utils'
 
-const HANDLE_BASE = {
-  width: 10,
-  height: 10,
-  border: '2px solid #222222',
+const INPUT_HANDLE = {
+  width: 14,
+  height: 14,
+  border: '2px solid #1e293b',
+  background: '#64748b',
+}
+
+const OUTPUT_HANDLE = {
+  width: 14,
+  height: 14,
+  border: '2px solid #1e293b',
+  background: '#f59e0b',
 }
 
 export const ExtractFrameNode = memo(function ExtractFrameNode({
@@ -52,7 +60,8 @@ export const ExtractFrameNode = memo(function ExtractFrameNode({
         type="target"
         position={Position.Left}
         id="video_url"
-        style={{ ...HANDLE_BASE, background: '#ef4444', top: 72 }}
+        title="Video Source (video)"
+        style={{ ...INPUT_HANDLE, top: 72 }}
       />
 
       {/* Input: timestamp */}
@@ -60,7 +69,8 @@ export const ExtractFrameNode = memo(function ExtractFrameNode({
         type="target"
         position={Position.Left}
         id="timestamp"
-        style={{ ...HANDLE_BASE, background: '#6366f1', top: 130 }}
+        title="Timestamp (text or number)"
+        style={{ ...INPUT_HANDLE, top: 130 }}
       />
 
       {/* Video URL input — greyed out when connected */}
@@ -140,7 +150,8 @@ export const ExtractFrameNode = memo(function ExtractFrameNode({
         type="source"
         position={Position.Right}
         id="output"
-        style={{ ...HANDLE_BASE, background: '#22c55e' }}
+        title="Extracted Frame Output"
+        style={OUTPUT_HANDLE}
       />
     </BaseNode>
   )

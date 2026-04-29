@@ -17,7 +17,7 @@ import {
 } from '@xyflow/react'
 import type { FlowNode, FlowEdge } from '@/types/workflow'
 import type { NodeData, NodeType } from '@/types/nodes'
-import { CONNECTION_RULES, OUTPUT_HANDLE_TYPES } from '@/types/nodes'
+import { CONNECTION_RULES, OUTPUT_HANDLE_TYPES, MULTI_INPUT_HANDLES } from '@/types/nodes'
 
 // ─── Store State Interface ─────────────────────────────────────
 
@@ -71,20 +71,22 @@ function isConnectionValid(
   if (!source || !target || !sourceHandle || !targetHandle) return false
   if (source === target) return false
 
-  // Prevent duplicate connections to same target handle
-  const existingConnection = edges.find(
-    e => e.target === target && e.targetHandle === targetHandle,
-  )
-  if (existingConnection) return false
-
   const sourceNode = nodes.find(n => n.id === source)
   const targetNode = nodes.find(n => n.id === target)
   if (!sourceNode || !targetNode) return false
 
   const sourceType = OUTPUT_HANDLE_TYPES[sourceNode.data.type]
   const ruleKey = `${targetNode.data.type}::${targetHandle}`
-  const allowedTypes = CONNECTION_RULES[ruleKey]
 
+  // Only block duplicate connections on single-input handles
+  if (!MULTI_INPUT_HANDLES.has(ruleKey)) {
+    const existingConnection = edges.find(
+      e => e.target === target && e.targetHandle === targetHandle,
+    )
+    if (existingConnection) return false
+  }
+
+  const allowedTypes = CONNECTION_RULES[ruleKey]
   // No rule means we allow the connection
   if (!allowedTypes) return true
   return allowedTypes.includes(sourceType)
@@ -139,6 +141,7 @@ function createDefaultNodeData(type: NodeType): NodeData {
         systemPrompt: '',
         userMessage: '',
         result: null,
+        resultIsImage: false,
         isRunning: false,
         error: null,
       }

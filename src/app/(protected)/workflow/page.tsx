@@ -9,7 +9,6 @@ import { WorkflowStoreHydration } from '@/components/providers/WorkflowStoreHydr
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useWorkflowStore } from '@/store/workflow-store'
-import { SAMPLE_WORKFLOW } from '@/lib/sample-workflow'
 import { Toaster } from 'sonner'
 import { useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -21,8 +20,6 @@ function WorkflowLoader() {
   const workflowId = useWorkflowStore((s) => s?.workflowId ?? null)
   const loadWorkflow = useWorkflowStore((s) => s?.loadWorkflow)
   const resetWorkflow = useWorkflowStore((s) => s?.resetWorkflow)
-  const setNodes = useWorkflowStore((s) => s?.setNodes)
-  const setEdges = useWorkflowStore((s) => s?.setEdges)
 
   useEffect(() => {
     if (workflowIdFromUrl) {
@@ -42,12 +39,8 @@ function WorkflowLoader() {
           .catch(() => {/* fallback: start blank */})
       }
     } else {
-      // No ?id — this is a "New Workflow" navigation. Always start fresh, even
-      // if the store still holds a previously-edited workflow. Otherwise the
-      // first save would PUT-update that old workflow instead of creating one.
+      // No ?id — start with a blank canvas
       resetWorkflow?.()
-      setNodes?.(SAMPLE_WORKFLOW.nodes)
-      setEdges?.(SAMPLE_WORKFLOW.edges)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflowIdFromUrl])

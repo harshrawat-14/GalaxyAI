@@ -5,23 +5,55 @@ import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { Brain, ChevronDown } from 'lucide-react'
 import { BaseNode } from './BaseNode'
 import { useWorkflowStore } from '@/store/workflow-store'
-import type { LLMNodeData, GroqModel } from '@/types/nodes'
+import type { LLMNodeData, LLMModel, GeminiModel, HuggingFaceModel } from '@/types/nodes'
 import { cn } from '@/lib/utils'
 
-const MODELS: GroqModel[] = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'mixtral-8x7b-32768',
-  'gemma2-9b-it',
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-  'meta-llama/llama-4-maverick-17b-128e-instruct',
+const GEMINI_TEXT_MODELS: GeminiModel[] = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
 ]
 
-const HANDLE_BASE = {
-  width: 10,
-  height: 10,
-  border: '2px solid #222222',
+const GEMINI_IMAGE_MODELS_LIST: GeminiModel[] = [
+  'gemini-2.5-flash-image',
+  'gemini-3-pro-image-preview',
+  'gemini-3.1-flash-image-preview',
+]
+
+const HF_IMAGE_MODELS: HuggingFaceModel[] = [
+  'black-forest-labs/FLUX.1-schnell',
+]
+
+const GEMINI_IMAGE_SET = new Set<string>(GEMINI_IMAGE_MODELS_LIST)
+const HF_SET = new Set<string>(HF_IMAGE_MODELS)
+
+function isImageGenModel(model: string) {
+  return GEMINI_IMAGE_SET.has(model) || HF_SET.has(model)
 }
+
+function headerColor(model: string) {
+  if (HF_SET.has(model)) return '#ff6b00'
+  if (GEMINI_IMAGE_SET.has(model)) return '#4285f4'
+  if (model.startsWith('gemini-')) return '#4285f4'
+  return '#8b5cf6'
+}
+
+const INPUT_HANDLE = {
+  width: 14,
+  height: 14,
+  border: '2px solid #1e293b',
+  background: '#64748b',
+}
+
+const OUTPUT_HANDLE = {
+  width: 14,
+  height: 14,
+  border: '2px solid #1e293b',
+  background: '#8b5cf6',
+}
+
+const DEFAULT_MODEL: LLMModel = 'gemini-2.5-flash'
 
 export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) {
   const nodeData = data as LLMNodeData
@@ -34,6 +66,9 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
     [id, updateNodeData],
   )
 
+  const currentModel = nodeData.model ?? DEFAULT_MODEL
+  const imgGen = isImageGenModel(currentModel)
+
   return (
     <BaseNode
       id={id}
@@ -41,7 +76,7 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
       isSelected={selected}
       title="Run LLM"
       icon={<Brain size={12} />}
-      headerColor="#8b5cf6"
+      headerColor={headerColor(currentModel)}
       minWidth={320}
     >
       {/* Input: system_prompt */}
@@ -49,7 +84,8 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
         type="target"
         position={Position.Left}
         id="system_prompt"
-        style={{ ...HANDLE_BASE, background: '#8b5cf6', top: 72 }}
+        title="System Prompt (text)"
+        style={{ ...INPUT_HANDLE, top: 72 }}
       />
 
       {/* Input: user_message */}
@@ -57,15 +93,17 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
         type="target"
         position={Position.Left}
         id="user_message"
-        style={{ ...HANDLE_BASE, background: '#22c55e', top: 120 }}
+        title="User Message (text)"
+        style={{ ...INPUT_HANDLE, top: 120 }}
       />
 
-      {/* Input: images */}
+      {/* Input: images — multi-input, accepts multiple image connections */}
       <Handle
         type="target"
         position={Position.Left}
         id="images"
-        style={{ ...HANDLE_BASE, background: '#f59e0b', top: 168 }}
+        title="Images (accepts multiple image inputs)"
+        style={{ ...INPUT_HANDLE, top: 168 }}
       />
 
       {/* Model selector */}
@@ -75,8 +113,8 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
         </label>
         <div className="relative">
           <select
-            value={nodeData.model}
-            onChange={(e) => update('model', e.target.value as GroqModel)}
+            value={currentModel}
+            onChange={(e) => update('model', e.target.value as LLMModel)}
             disabled={nodeData.isRunning}
             className={cn(
               'w-full bg-surface border border-border rounded-lg px-2.5 py-1.5',
@@ -85,11 +123,21 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
               nodeData.isRunning && 'opacity-50 cursor-not-allowed',
             )}
           >
-            {MODELS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
+            <optgroup label="Gemini — Text">
+              {GEMINI_TEXT_MODELS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Gemini — Image (requires billing)">
+              {GEMINI_IMAGE_MODELS_LIST.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </optgroup>
+            <optgroup label="HuggingFace — Image (free)">
+              {HF_IMAGE_MODELS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </optgroup>
           </select>
           <ChevronDown
             size={12}
@@ -98,37 +146,39 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
         </div>
       </div>
 
-      {/* System prompt */}
-      <div className="space-y-1">
-        <label className="text-[10px] text-textmuted uppercase tracking-wider flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-accent" />
-          System Prompt
-          <span className="text-textsub">(optional)</span>
-        </label>
-        <textarea
-          value={nodeData.systemPrompt}
-          onChange={(e) => update('systemPrompt', e.target.value)}
-          placeholder="You are a helpful assistant..."
-          disabled={nodeData.isRunning}
-          rows={2}
-          className={cn(
-            'w-full bg-surface border border-border rounded-lg px-2.5 py-1.5',
-            'text-xs text-text resize-none placeholder:text-textsub',
-            'focus:outline-none focus:border-accent transition-colors nodrag nowheel',
-          )}
-        />
-      </div>
+      {/* System prompt — hidden for image generation models */}
+      {!imgGen && (
+        <div className="space-y-1">
+          <label className="text-[10px] text-textmuted uppercase tracking-wider flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-accent" />
+            System Prompt
+            <span className="text-textsub">(optional)</span>
+          </label>
+          <textarea
+            value={nodeData.systemPrompt}
+            onChange={(e) => update('systemPrompt', e.target.value)}
+            placeholder="You are a helpful assistant..."
+            disabled={nodeData.isRunning}
+            rows={2}
+            className={cn(
+              'w-full bg-surface border border-border rounded-lg px-2.5 py-1.5',
+              'text-xs text-text resize-none placeholder:text-textsub',
+              'focus:outline-none focus:border-accent transition-colors nodrag nowheel',
+            )}
+          />
+        </div>
+      )}
 
-      {/* User message */}
+      {/* User message / Image prompt */}
       <div className="space-y-1">
         <label className="text-[10px] text-textmuted uppercase tracking-wider flex items-center gap-1">
           <span className="w-2 h-2 rounded-full bg-success" />
-          User Message
+          {imgGen ? 'Image Prompt' : 'User Message'}
         </label>
         <textarea
           value={nodeData.userMessage}
           onChange={(e) => update('userMessage', e.target.value)}
-          placeholder="Enter your message..."
+          placeholder={imgGen ? 'Describe the image to generate…' : 'Enter your message…'}
           disabled={nodeData.isRunning}
           rows={2}
           className={cn(
@@ -139,19 +189,26 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
         />
       </div>
 
-      {/* Result inline display */}
+      {/* Result — image or text */}
       {nodeData.result && (
         <div className="mt-2 p-2 bg-surface border border-border rounded-lg space-y-1">
-          <p className="text-[10px] text-textmuted uppercase tracking-wider">
-            Output
-          </p>
-          <p className="text-xs text-text whitespace-pre-wrap max-h-32 overflow-y-auto nodrag nowheel">
-            {nodeData.result}
-          </p>
+          <p className="text-[10px] text-textmuted uppercase tracking-wider">Output</p>
+          {nodeData.resultIsImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={nodeData.result}
+              alt="Generated"
+              className="w-full rounded-md object-contain max-h-48 nodrag nowheel"
+            />
+          ) : (
+            <p className="text-xs text-text whitespace-pre-wrap max-h-32 overflow-y-auto nodrag nowheel">
+              {nodeData.result}
+            </p>
+          )}
         </div>
       )}
 
-      {/* Error display */}
+      {/* Error */}
       {nodeData.error && (
         <div className="mt-2 p-2 bg-error/10 border border-error/30 rounded-lg">
           <p className="text-xs text-error">{nodeData.error}</p>
@@ -163,7 +220,8 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
         type="source"
         position={Position.Right}
         id="output"
-        style={{ ...HANDLE_BASE, background: '#22c55e' }}
+        title="Text Output"
+        style={OUTPUT_HANDLE}
       />
     </BaseNode>
   )

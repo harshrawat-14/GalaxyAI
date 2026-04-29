@@ -9,10 +9,10 @@ import type { TextNodeData } from '@/types/nodes'
 import { cn } from '@/lib/utils'
 
 const HANDLE_STYLE = {
-  width: 10,
-  height: 10,
-  border: '2px solid #222222',
-  background: '#6366f1',
+  width: 14,
+  height: 14,
+  border: '2px solid #1e293b',
+  background: '#8b5cf6',
 }
 
 export const TextNode = memo(function TextNode({ id, data, selected }: NodeProps) {
@@ -59,6 +59,7 @@ export const TextNode = memo(function TextNode({ id, data, selected }: NodeProps
         type="source"
         position={Position.Right}
         id="output"
+        title="Text Output"
         style={HANDLE_STYLE}
       />
     </BaseNode>

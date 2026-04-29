@@ -49,14 +49,30 @@ export type GroqModel =
   | 'meta-llama/llama-4-scout-17b-16e-instruct'
   | 'meta-llama/llama-4-maverick-17b-128e-instruct'
 
+export type GeminiModel =
+  | 'gemini-2.5-flash'
+  | 'gemini-2.5-pro'
+  | 'gemini-2.0-flash'
+  | 'gemini-2.0-flash-lite'
+  | 'gemini-2.5-flash-image'
+  | 'gemini-3-pro-image-preview'
+  | 'gemini-3.1-flash-image-preview'
+
+export type HuggingFaceModel =
+  | 'black-forest-labs/FLUX.1-schnell'
+
+export type LLMModel = GroqModel | GeminiModel | HuggingFaceModel
+
 export interface LLMNodeData {
   [key: string]: unknown
   type: 'llm'
   label: string
-  model: GroqModel
+  model: LLMModel
   systemPrompt: string
   userMessage: string
   result: string | null
+  /** True when result is a data: URL containing a generated image */
+  resultIsImage: boolean
   isRunning: boolean
   error: string | null
 }
@@ -100,6 +116,11 @@ export type NodeData =
   | ExtractFrameNodeData
 
 export type NodeType = NodeData['type']
+
+// Handles that accept multiple incoming connections (fan-in)
+export const MULTI_INPUT_HANDLES = new Set([
+  'llm::images',
+])
 
 // Type-safe connection rules
 export const CONNECTION_RULES: Record<string, HandleType[]> = {

@@ -12,6 +12,7 @@ import {
   StopCircle,
   LayoutDashboard,
   Loader2,
+  Trash2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useWorkflowStore, useTemporalStore } from '@/store/workflow-store'
@@ -63,6 +64,13 @@ export function CanvasToolbar() {
     } finally {
       setIsSaving(false)
     }
+  }, [])
+
+  const handleClearCanvas = useCallback(() => {
+    const { setNodes, setEdges } = useWorkflowStore.getState()
+    setNodes([])
+    setEdges([])
+    toast.success('Canvas cleared')
   }, [])
 
   const handleExport = useCallback(() => {
@@ -192,6 +200,12 @@ export function CanvasToolbar() {
           ) : (
             <Save size={14} />
           )}
+        </ToolbarButton>
+      </Tooltip>
+
+      <Tooltip content="Clear canvas" side="bottom">
+        <ToolbarButton onClick={handleClearCanvas}>
+          <Trash2 size={14} />
         </ToolbarButton>
       </Tooltip>
 

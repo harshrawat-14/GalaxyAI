@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { sseBroadcast } from '@/lib/sse-broadcast'
 
 const UpdateRunSchema = z.object({
   status: z.enum(['SUCCESS', 'FAILED', 'PARTIAL']),
@@ -35,6 +36,8 @@ export async function PATCH(
     where: { id: runId },
     data: { status: parsed.data.status, completedAt, durationMs },
   })
+
+  sseBroadcast(id, 'run:complete', { runId, status: parsed.data.status, durationMs })
 
   return NextResponse.json(updated)
 }

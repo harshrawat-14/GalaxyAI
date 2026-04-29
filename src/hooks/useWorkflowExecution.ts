@@ -125,6 +125,7 @@ export function useWorkflowExecution() {
                 if (node.data.type === 'llm' && result['text']) {
                   s.updateNodeData(node.id, {
                     result: result['text'] as string,
+                    resultIsImage: result['isImage'] === true,
                     error: null,
                   })
                 }

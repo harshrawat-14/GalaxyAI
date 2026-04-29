@@ -9,9 +9,9 @@ import type { UploadImageNodeData } from '@/types/nodes'
 import { cn } from '@/lib/utils'
 
 const HANDLE_STYLE = {
-  width: 10,
-  height: 10,
-  border: '2px solid #222222',
+  width: 14,
+  height: 14,
+  border: '2px solid #1e293b',
   background: '#f59e0b',
 }
 
@@ -231,6 +231,7 @@ export const UploadImageNode = memo(function UploadImageNode({
         type="source"
         position={Position.Right}
         id="output"
+        title="Image Output"
         style={HANDLE_STYLE}
       />
     </BaseNode>

@@ -8,10 +8,18 @@ import { useWorkflowStore } from '@/store/workflow-store'
 import type { CropImageNodeData } from '@/types/nodes'
 import { cn } from '@/lib/utils'
 
-const HANDLE_BASE = {
-  width: 10,
-  height: 10,
-  border: '2px solid #222222',
+const INPUT_HANDLE = {
+  width: 14,
+  height: 14,
+  border: '2px solid #1e293b',
+  background: '#64748b',
+}
+
+const OUTPUT_HANDLE = {
+  width: 14,
+  height: 14,
+  border: '2px solid #1e293b',
+  background: '#f59e0b',
 }
 
 export const CropImageNode = memo(function CropImageNode({
@@ -47,7 +55,8 @@ export const CropImageNode = memo(function CropImageNode({
         type="target"
         position={Position.Left}
         id="image_url"
-        style={{ ...HANDLE_BASE, background: '#f59e0b', top: 72 }}
+        title="Image Source (image)"
+        style={{ ...INPUT_HANDLE, top: 72 }}
       />
 
       {/* Input: x_percent */}
@@ -55,7 +64,8 @@ export const CropImageNode = memo(function CropImageNode({
         type="target"
         position={Position.Left}
         id="x_percent"
-        style={{ ...HANDLE_BASE, background: '#6366f1', top: 120 }}
+        title="X Offset % (text or number)"
+        style={{ ...INPUT_HANDLE, top: 120 }}
       />
 
       {/* Input: y_percent */}
@@ -63,7 +73,8 @@ export const CropImageNode = memo(function CropImageNode({
         type="target"
         position={Position.Left}
         id="y_percent"
-        style={{ ...HANDLE_BASE, background: '#6366f1', top: 160 }}
+        title="Y Offset % (text or number)"
+        style={{ ...INPUT_HANDLE, top: 160 }}
       />
 
       {/* Input: width_percent */}
@@ -71,7 +82,8 @@ export const CropImageNode = memo(function CropImageNode({
         type="target"
         position={Position.Left}
         id="width_percent"
-        style={{ ...HANDLE_BASE, background: '#6366f1', top: 200 }}
+        title="Width % (text or number)"
+        style={{ ...INPUT_HANDLE, top: 200 }}
       />
 
       {/* Input: height_percent */}
@@ -79,7 +91,8 @@ export const CropImageNode = memo(function CropImageNode({
         type="target"
         position={Position.Left}
         id="height_percent"
-        style={{ ...HANDLE_BASE, background: '#6366f1', top: 240 }}
+        title="Height % (text or number)"
+        style={{ ...INPUT_HANDLE, top: 240 }}
       />
 
       {/* Image URL input — greyed out when connected */}
@@ -168,7 +181,8 @@ export const CropImageNode = memo(function CropImageNode({
         type="source"
         position={Position.Right}
         id="output"
-        style={{ ...HANDLE_BASE, background: '#22c55e' }}
+        title="Cropped Image Output"
+        style={OUTPUT_HANDLE}
       />
     </BaseNode>
   )

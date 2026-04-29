@@ -66,34 +66,35 @@ export function RightSidebar({ workflowId }: Props) {
   }
 
   useEffect(() => {
+    setRuns([])
+    setIsLoading(false)
     if (!workflowId) return
 
     let aborted = false
-    let timer: ReturnType<typeof setTimeout> | null = null
 
-    async function poll() {
+    async function fetchRuns() {
       if (aborted) return
       try {
         const res = await fetch(`/api/workflow/${workflowId}/runs`)
         if (res.ok && !aborted) {
-          const data = (await res.json()) as WorkflowRun[]
-          setRuns(data)
+          setRuns((await res.json()) as WorkflowRun[])
           setIsLoading(false)
-          // Poll every 3s while something is RUNNING, every 20s when idle
-          const hasActive = data.some((r) => r.status === 'RUNNING')
-          timer = setTimeout(poll, hasActive ? 3000 : 20000)
         }
       } catch {
-        if (!aborted) timer = setTimeout(poll, 10000)
+        // silent — SSE will trigger retry when next run completes
       }
     }
 
     setIsLoading(true)
-    void poll()
+    void fetchRuns()
+
+    // Subscribe to server-sent events — refetch once when a run finishes
+    const es = new EventSource(`/api/workflow/${workflowId}/events`)
+    es.addEventListener('run:complete', () => void fetchRuns())
 
     return () => {
       aborted = true
-      if (timer) clearTimeout(timer)
+      es.close()
     }
   }, [workflowId])
 

@@ -70,7 +70,7 @@ export function WorkflowCanvas() {
     (connection) => {
       const success = storeConnect(connection)
       if (!success) {
-        toast.error('Invalid connection: type mismatch or cycle detected')
+        toast.error('Cannot connect: incompatible types, cycle, or handle already wired')
       }
     },
     [storeConnect],
