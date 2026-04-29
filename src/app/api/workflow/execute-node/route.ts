@@ -122,7 +122,7 @@ export async function POST(req: Request) {
           text: string
           isImage: boolean
           nodeRunId: string
-        }>('llm-groq-task', {
+        }>('llm-task', {
           model,
           systemPrompt,
           userMessage,
@@ -140,9 +140,9 @@ export async function POST(req: Request) {
         if (!rawUrl) throw new Error('No image URL provided for crop')
         const imageUrl = toAbsoluteUrl(rawUrl, origin)
 
-        const xPercent = Number(inputs['x_percent']      ?? nodeData['xPercent'])      || 0
-        const yPercent = Number(inputs['y_percent']      ?? nodeData['yPercent'])      || 0
-        const widthPercent  = Number(inputs['width_percent']  ?? nodeData['widthPercent'])  || 100
+        const xPercent = Number(inputs['x_percent'] ?? nodeData['xPercent']) || 0
+        const yPercent = Number(inputs['y_percent'] ?? nodeData['yPercent']) || 0
+        const widthPercent = Number(inputs['width_percent'] ?? nodeData['widthPercent']) || 100
         const heightPercent = Number(inputs['height_percent'] ?? nodeData['heightPercent']) || 100
 
         const { output, triggerRunId: trid } = await triggerAndAwait<{

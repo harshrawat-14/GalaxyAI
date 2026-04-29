@@ -13,7 +13,7 @@ const LLMInputSchema = z.object({
 type LLMInput = z.infer<typeof LLMInputSchema>
 
 export const llmTask = task({
-  id: 'llm-groq-task',
+  id: 'llm-task',
   run: async (payload: LLMInput) => {
     const { model, systemPrompt, userMessage, imageUrls = [], nodeRunId } = payload
     const provider = detectProvider(model)

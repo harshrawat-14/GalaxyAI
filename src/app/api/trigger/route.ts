@@ -12,6 +12,6 @@ export async function GET() {
     ok: true,
     service: 'nextflow',
     triggerSdkVersion: 'v4',
-    tasks: ['llm-groq-task', 'crop-image-ffmpeg', 'extract-frame-ffmpeg'],
+    tasks: ['llm-task', 'crop-image-ffmpeg', 'extract-frame-ffmpeg'],
   })
 }
