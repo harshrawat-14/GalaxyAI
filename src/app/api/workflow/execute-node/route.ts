@@ -2,16 +2,9 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { llmChat } from '@/lib/llm-client'
-import { writeFile, readFile, unlink, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { randomBytes } from 'crypto'
-import { exec } from 'child_process'
-import { promisify } from 'util'
+import { tasks, runs } from '@trigger.dev/sdk/v3'
+import '@/lib/trigger-client'
 import type { Prisma } from '@prisma/client'
-
-const execAsync = promisify(exec)
-const TMP = '/tmp/nextflow-uploads'
 
 const ExecuteNodeSchema = z.object({
   nodeId: z.string(),
@@ -20,6 +13,38 @@ const ExecuteNodeSchema = z.object({
   inputs: z.record(z.string(), z.unknown()),
   runId: z.string(),
 })
+
+const POLL_INTERVAL_MS = 1000
+const POLL_TIMEOUT_MS = 5 * 60 * 1000
+
+/** Make /api/file/... paths absolute so the Trigger.dev worker can fetch them */
+function toAbsoluteUrl(url: string, origin: string): string {
+  if (url.startsWith('/api/file/')) return `${origin}${url}`
+  return url
+}
+
+async function triggerAndAwait<TOutput>(
+  taskId: string,
+  payload: unknown,
+): Promise<{ output: TOutput; triggerRunId: string }> {
+  const handle = await tasks.trigger(taskId, payload)
+
+  const pollPromise = runs.poll(handle.id, { pollIntervalMs: POLL_INTERVAL_MS })
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`Trigger.dev task ${taskId} timed out after ${POLL_TIMEOUT_MS}ms`)),
+      POLL_TIMEOUT_MS,
+    ),
+  )
+  const completed = await Promise.race([pollPromise, timeoutPromise])
+
+  if (completed.status !== 'COMPLETED') {
+    const errMessage = completed.error?.message ?? 'Task did not complete successfully'
+    throw new Error(`[${completed.status}] ${errMessage}`)
+  }
+
+  return { output: completed.output as TOutput, triggerRunId: handle.id }
+}
 
 export async function POST(req: Request) {
   const { userId } = await auth()
@@ -35,9 +60,9 @@ export async function POST(req: Request) {
     )
 
   const { nodeId, nodeType, nodeData, inputs, runId } = parsed.data
+  const origin = req.headers.get('origin') ?? `http://localhost:${process.env.PORT ?? 3000}`
   const startTime = Date.now()
 
-  // Create NodeRun record
   const nodeRun = await prisma.nodeRun.create({
     data: {
       workflowRunId: runId,
@@ -51,10 +76,11 @@ export async function POST(req: Request) {
 
   try {
     let result: Record<string, unknown> = {}
+    let triggerRunId: string | null = null
 
     switch (nodeType) {
+      // ── Lightweight passthroughs (no Trigger.dev needed) ──────
       case 'text': {
-        // Text nodes just pass through their content
         const content =
           (inputs['content'] as string) ??
           (nodeData['content'] as string) ??
@@ -75,6 +101,7 @@ export async function POST(req: Request) {
         break
       }
 
+      // ── Heavy ops dispatched to Trigger.dev ───────────────────
       case 'llm': {
         const model =
           (inputs['model'] as string) ??
@@ -88,104 +115,69 @@ export async function POST(req: Request) {
           (inputs['user_message'] as string) ??
           (nodeData['userMessage'] as string) ??
           ''
-        const imageUrls = (inputs['images'] as string[]) ?? []
+        const rawImages = (inputs['images'] as string[]) ?? []
+        const imageUrls = rawImages.map((u) => toAbsoluteUrl(u, origin))
 
-        const { text, isImage } = await llmChat({ model, systemPrompt, userMessage, imageUrls })
-
-        result = { text, output: text, isImage: isImage ?? false }
+        const { output, triggerRunId: trid } = await triggerAndAwait<{
+          text: string
+          isImage: boolean
+          nodeRunId: string
+        }>('llm-groq-task', {
+          model,
+          systemPrompt,
+          userMessage,
+          imageUrls,
+          nodeRunId: nodeRun.id,
+        })
+        triggerRunId = trid
+        result = { text: output.text, output: output.text, isImage: output.isImage }
         break
       }
 
       case 'crop-image': {
-        const imageUrl =
+        const rawUrl =
           (inputs['image_url'] as string) ?? (nodeData['imageUrl'] as string)
-        if (!imageUrl) throw new Error('No image URL provided for crop')
+        if (!rawUrl) throw new Error('No image URL provided for crop')
+        const imageUrl = toAbsoluteUrl(rawUrl, origin)
 
-        // Parse percentages — coerce to numbers, default to full image if missing
-        const xPct = Number(inputs['x_percent']      ?? nodeData['xPercent'])      || 0
-        const yPct = Number(inputs['y_percent']      ?? nodeData['yPercent'])      || 0
-        const wPct = Number(inputs['width_percent']  ?? nodeData['widthPercent'])  || 100
-        const hPct = Number(inputs['height_percent'] ?? nodeData['heightPercent']) || 100
+        const xPercent = Number(inputs['x_percent']      ?? nodeData['xPercent'])      || 0
+        const yPercent = Number(inputs['y_percent']      ?? nodeData['yPercent'])      || 0
+        const widthPercent  = Number(inputs['width_percent']  ?? nodeData['widthPercent'])  || 100
+        const heightPercent = Number(inputs['height_percent'] ?? nodeData['heightPercent']) || 100
 
-        let imgBuf: Buffer
-        if (imageUrl.startsWith('data:')) {
-          imgBuf = Buffer.from(imageUrl.split(',')[1] ?? '', 'base64')
-        } else {
-          imgBuf = Buffer.from(await (await fetch(imageUrl)).arrayBuffer())
-        }
-
-        const sharp = (await import('sharp')).default
-        const img = sharp(imgBuf)
-        const { width = 100, height = 100, format = 'jpeg' } = await img.metadata()
-
-        const left = Math.max(0, Math.min(width  - 1, Math.round(width  * xPct / 100)))
-        const top  = Math.max(0, Math.min(height - 1, Math.round(height * yPct / 100)))
-        const cw   = Math.max(1, Math.min(width  - left, Math.round(width  * wPct / 100)))
-        const ch   = Math.max(1, Math.min(height - top,  Math.round(height * hPct / 100)))
-
-        if (xPct + wPct > 100 || yPct + hPct > 100) {
-          throw new Error(
-            `Crop window out of bounds: X%${xPct}+W%${wPct}=${xPct+wPct} or Y%${yPct}+H%${hPct}=${yPct+hPct} exceeds 100%. ` +
-            `Reduce X%, Y%, or the width/height percentages so the crop fits inside the image.`,
-          )
-        }
-
-        const cropped = await img.extract({ left, top, width: cw, height: ch }).toBuffer()
-        const dataUrl = `data:image/${format};base64,${cropped.toString('base64')}`
-
-        result = { resultUrl: dataUrl, output: dataUrl }
+        const { output, triggerRunId: trid } = await triggerAndAwait<{
+          resultUrl: string
+          nodeRunId: string
+        }>('crop-image-ffmpeg', {
+          imageUrl,
+          xPercent,
+          yPercent,
+          widthPercent,
+          heightPercent,
+          nodeRunId: nodeRun.id,
+        })
+        triggerRunId = trid
+        result = { resultUrl: output.resultUrl, output: output.resultUrl }
         break
       }
 
       case 'extract-frame': {
-        const videoUrl =
+        const rawUrl =
           (inputs['video_url'] as string) ?? (nodeData['videoUrl'] as string)
-        if (!videoUrl) throw new Error('No video URL provided for frame extraction')
-        if (videoUrl.startsWith('blob:')) {
-          throw new Error('Video has not been uploaded to the server yet. Please remove and re-add the video after reloading.')
-        }
-
+        if (!rawUrl) throw new Error('No video URL provided for frame extraction')
+        const videoUrl = toAbsoluteUrl(rawUrl, origin)
         const timestamp = String(inputs['timestamp'] ?? nodeData['timestamp'] ?? '0')
 
-        // Use process.cwd() to avoid Turbopack's /ROOT path alias breaking ffmpeg-static
-        const ffmpegBin = join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg')
-
-        await mkdir(TMP, { recursive: true })
-        const id      = randomBytes(8).toString('hex')
-        const vidPath = join(TMP, `${id}.mp4`)
-        const frmPath = join(TMP, `${id}.jpg`)
-
-        // Read video from server-local URL or remote URL
-        let vidBuf: Buffer
-        if (videoUrl.startsWith('/api/file/')) {
-          vidBuf = await readFile(join(TMP, videoUrl.replace('/api/file/', '')))
-        } else if (videoUrl.startsWith('data:')) {
-          vidBuf = Buffer.from(videoUrl.split(',')[1] ?? '', 'base64')
-        } else {
-          vidBuf = Buffer.from(await (await fetch(videoUrl)).arrayBuffer())
-        }
-        await writeFile(vidPath, vidBuf)
-
-        // Resolve percentage timestamp → seconds
-        let seekTime = timestamp.replace(/s$/i, '').trim()
-        if (timestamp.endsWith('%')) {
-          const pct = parseFloat(timestamp) / 100
-          const { stdout } = await execAsync(
-            `"${ffmpegBin}" -v error -show_entries format=duration -of csv=p=0 "${vidPath}"`,
-          ).catch(() => ({ stdout: '0' }))
-          const dur = parseFloat(stdout.trim()) || 0
-          seekTime = String((dur * pct).toFixed(2))
-        }
-
-        await execAsync(
-          `"${ffmpegBin}" -ss ${seekTime} -i "${vidPath}" -frames:v 1 -q:v 2 "${frmPath}" -y`,
-        )
-
-        const frameBuf = await readFile(frmPath)
-        const dataUrl  = `data:image/jpeg;base64,${frameBuf.toString('base64')}`
-        await Promise.allSettled([unlink(vidPath), unlink(frmPath)])
-
-        result = { resultUrl: dataUrl, output: dataUrl }
+        const { output, triggerRunId: trid } = await triggerAndAwait<{
+          resultUrl: string
+          nodeRunId: string
+        }>('extract-frame-ffmpeg', {
+          videoUrl,
+          timestamp,
+          nodeRunId: nodeRun.id,
+        })
+        triggerRunId = trid
+        result = { resultUrl: output.resultUrl, output: output.resultUrl }
         break
       }
 
@@ -195,7 +187,6 @@ export async function POST(req: Request) {
 
     const durationMs = Date.now() - startTime
 
-    // Update NodeRun with success — strip base64 blobs before storing
     await prisma.nodeRun.update({
       where: { id: nodeRun.id },
       data: {
@@ -203,6 +194,7 @@ export async function POST(req: Request) {
         outputs: stripBlobs(result) as unknown as Prisma.InputJsonValue,
         completedAt: new Date(),
         durationMs,
+        ...(triggerRunId ? { triggerRunId } : {}),
       },
     })
 
@@ -212,7 +204,6 @@ export async function POST(req: Request) {
     const errorMessage =
       err instanceof Error ? err.message : 'Unknown execution error'
 
-    // Update NodeRun with failure
     await prisma.nodeRun.update({
       where: { id: nodeRun.id },
       data: {
@@ -237,3 +228,4 @@ function stripBlobs(obj: Record<string, unknown>): Record<string, unknown> {
   }
   return out
 }
+

@@ -1,12 +1,16 @@
 import { task, logger } from '@trigger.dev/sdk/v3'
 import { z } from 'zod'
-import { execSync } from 'child_process'
-import * as fs from 'fs'
-import * as path from 'path'
-import * as os from 'os'
+import { writeFile, readFile, unlink, mkdir } from 'fs/promises'
+import { join } from 'path'
+import { randomBytes } from 'crypto'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
+const TMP = '/tmp/nextflow-extract'
 
 const ExtractFrameSchema = z.object({
-  videoUrl: z.string().url(),
+  videoUrl: z.string().min(1),
   timestamp: z.string(),
   nodeRunId: z.string(),
 })
@@ -18,40 +22,52 @@ export const extractFrameTask = task({
   run: async (payload: ExtractFrameInput) => {
     const { videoUrl, timestamp, nodeRunId } = payload
 
-    await logger.info('Starting frame extraction', { nodeRunId })
+    await logger.info('Starting frame extraction', { nodeRunId, timestamp })
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nextflow-'))
-    const inputPath = path.join(tmpDir, 'input.mp4')
-    const outputPath = path.join(tmpDir, 'frame.jpg')
+    if (videoUrl.startsWith('blob:')) {
+      throw new Error(
+        'Video has not been uploaded to the server yet. Re-add the video after upload completes.',
+      )
+    }
+
+    const ffmpegBin = join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg')
+
+    await mkdir(TMP, { recursive: true })
+    const id      = randomBytes(8).toString('hex')
+    const vidPath = join(TMP, `${id}.mp4`)
+    const frmPath = join(TMP, `${id}.jpg`)
+
+    let vidBuf: Buffer
+    if (videoUrl.startsWith('data:')) {
+      vidBuf = Buffer.from(videoUrl.split(',')[1] ?? '', 'base64')
+    } else {
+      const res = await fetch(videoUrl)
+      if (!res.ok) throw new Error(`Failed to fetch source video (${res.status})`)
+      vidBuf = Buffer.from(await res.arrayBuffer())
+    }
+    await writeFile(vidPath, vidBuf)
+
+    let seekTime = timestamp.replace(/s$/i, '').trim()
+    if (timestamp.endsWith('%')) {
+      const pct = parseFloat(timestamp) / 100
+      const { stdout } = await execAsync(
+        `"${ffmpegBin}" -v error -show_entries format=duration -of csv=p=0 "${vidPath}"`,
+      ).catch(() => ({ stdout: '0' }))
+      const dur = parseFloat(stdout.trim()) || 0
+      seekTime = String((dur * pct).toFixed(2))
+    }
 
     try {
-      const vidRes = await fetch(videoUrl)
-      fs.writeFileSync(inputPath, Buffer.from(await vidRes.arrayBuffer()))
-
-      let resolvedTimestamp = timestamp
-      if (timestamp.endsWith('%')) {
-        const pct = parseFloat(timestamp) / 100
-        const durationOutput = execSync(
-          `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${inputPath}"`,
-        )
-          .toString()
-          .trim()
-        const duration = parseFloat(durationOutput)
-        resolvedTimestamp = String(Math.floor(pct * duration))
-      }
-
-      execSync(
-        `ffmpeg -ss ${resolvedTimestamp} -i "${inputPath}" -vframes 1 -q:v 2 -y "${outputPath}"`,
+      await execAsync(
+        `"${ffmpegBin}" -ss ${seekTime} -i "${vidPath}" -frames:v 1 -q:v 2 "${frmPath}" -y`,
       )
+      const frameBuf = await readFile(frmPath)
+      const resultUrl = `data:image/jpeg;base64,${frameBuf.toString('base64')}`
 
-      const resultBuffer = fs.readFileSync(outputPath)
-      const base64 = resultBuffer.toString('base64')
-      const resultUrl = `data:image/jpeg;base64,${base64}`
-
-      await logger.info('Frame extraction complete', { nodeRunId, resolvedTimestamp })
+      await logger.info('Frame extraction complete', { nodeRunId, seekTime })
       return { resultUrl, nodeRunId }
     } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true })
+      await Promise.allSettled([unlink(vidPath), unlink(frmPath)])
     }
   },
 })
