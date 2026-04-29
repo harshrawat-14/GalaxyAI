@@ -5,6 +5,7 @@ import { join } from 'path'
 import { randomBytes } from 'crypto'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import ffmpegStatic from 'ffmpeg-static'
 
 const execAsync = promisify(exec)
 const TMP = '/tmp/nextflow-extract'
@@ -30,7 +31,7 @@ export const extractFrameTask = task({
       )
     }
 
-    const ffmpegBin = join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg')
+    const ffmpegBin = ffmpegStatic || 'ffmpeg'
 
     await mkdir(TMP, { recursive: true })
     const id      = randomBytes(8).toString('hex')
