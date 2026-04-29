@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sseBroadcast } from '@/lib/sse-broadcast'
 import { z } from 'zod'
 
 const RunWorkflowSchema = z.object({
@@ -41,6 +42,8 @@ export async function POST(
       selectedNodeIds: parsed.data.selectedNodeIds ?? [],
     },
   })
+
+  sseBroadcast(id, 'run:start', { runId: run.id })
 
   return NextResponse.json({ runId: run.id }, { status: 201 })
 }

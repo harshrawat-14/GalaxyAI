@@ -71,29 +71,41 @@ export function RightSidebar({ workflowId }: Props) {
     if (!workflowId) return
 
     let aborted = false
+    let pollTimer: ReturnType<typeof setTimeout> | null = null
 
     async function fetchRuns() {
       if (aborted) return
       try {
         const res = await fetch(`/api/workflow/${workflowId}/runs`)
         if (res.ok && !aborted) {
-          setRuns((await res.json()) as WorkflowRun[])
+          const data = (await res.json()) as WorkflowRun[]
+          setRuns(data)
           setIsLoading(false)
+
+          // Keep polling at 2s while any run is still RUNNING
+          if (data.some((r) => r.status === 'RUNNING')) {
+            pollTimer = setTimeout(() => void fetchRuns(), 2000)
+          }
         }
       } catch {
-        // silent — SSE will trigger retry when next run completes
+        // silent
       }
     }
 
     setIsLoading(true)
     void fetchRuns()
 
-    // Subscribe to server-sent events — refetch once when a run finishes
+    // Refetch when a run starts (shows RUNNING immediately) or completes
     const es = new EventSource(`/api/workflow/${workflowId}/events`)
-    es.addEventListener('run:complete', () => void fetchRuns())
+    es.addEventListener('run:start', () => void fetchRuns())
+    es.addEventListener('run:complete', () => {
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null }
+      void fetchRuns()
+    })
 
     return () => {
       aborted = true
+      if (pollTimer) clearTimeout(pollTimer)
       es.close()
     }
   }, [workflowId])
