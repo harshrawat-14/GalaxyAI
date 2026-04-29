@@ -337,7 +337,23 @@ export const useWorkflowStore = create<WorkflowStore>()(
         set((s) => {
           s.workflowId = id
           s.workflowName = name
-          s.nodes = nodes
+
+          // Rebuild connectedInputs for nodes that support it
+          const edgeTargets = edges.map(e => ({ node: e.target, handle: e.targetHandle }))
+          const hydratedNodes = nodes.map((node) => {
+            if ('connectedInputs' in node.data) {
+              const connectedInputs: Record<string, boolean> = {}
+              edgeTargets.forEach((t) => {
+                if (t.node === node.id && t.handle) {
+                  connectedInputs[t.handle] = true
+                }
+              })
+              return { ...node, data: { ...node.data, connectedInputs } }
+            }
+            return node
+          })
+
+          s.nodes = hydratedNodes as FlowNode[]
           s.edges = edges
           s.viewport = viewport ?? { x: 0, y: 0, zoom: 1 }
           s.isDirty = false
