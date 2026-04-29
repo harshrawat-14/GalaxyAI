@@ -6,7 +6,6 @@ import { randomBytes } from 'crypto'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import ffmpegStatic from 'ffmpeg-static'
-import { uploadBufferToTransloadit } from '@/lib/transloadit-upload'
 
 const execAsync = promisify(exec)
 const TMP = '/tmp/nextflow-extract'
@@ -64,7 +63,7 @@ export const extractFrameTask = task({
         `"${ffmpegBin}" -ss ${seekTime} -i "${vidPath}" -frames:v 1 -q:v 2 "${frmPath}" -y`,
       )
       const frameBuf = await readFile(frmPath)
-      const resultUrl = await uploadBufferToTransloadit(frameBuf, `frame-${id}.jpg`, 'image/jpeg')
+      const resultUrl = `data:image/jpeg;base64,${frameBuf.toString('base64')}`
 
       await logger.info('Frame extraction complete', { nodeRunId, seekTime })
       return { resultUrl, nodeRunId }

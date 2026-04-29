@@ -1,7 +1,5 @@
 import { task, logger } from '@trigger.dev/sdk/v3'
 import { z } from 'zod'
-import { randomBytes } from 'crypto'
-import { uploadBufferToTransloadit } from '@/lib/transloadit-upload'
 
 const CropInputSchema = z.object({
   imageUrl: z.string().min(1),
@@ -49,12 +47,8 @@ export const cropImageTask = task({
     const cw   = Math.max(1, Math.min(width  - left, Math.round(width  * widthPercent  / 100)))
     const ch   = Math.max(1, Math.min(height - top,  Math.round(height * heightPercent / 100)))
 
-    const ext = format === 'png' ? 'png' : 'jpg'
-    const outName = `crop-${randomBytes(8).toString('hex')}.${ext}`
-    const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg'
-
     const cropped = await img.extract({ left, top, width: cw, height: ch }).toBuffer()
-    const resultUrl = await uploadBufferToTransloadit(cropped, outName, mimeType)
+    const resultUrl = `data:image/${format};base64,${cropped.toString('base64')}`
 
     await logger.info('Image crop complete', { nodeRunId })
     return { resultUrl, nodeRunId }
