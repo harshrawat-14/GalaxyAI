@@ -3,6 +3,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export type LLMProvider = 'groq' | 'gemini' | 'huggingface'
 
+/** True only when DEVELOPMENT=true is set in the server environment */
+export const IS_DEVELOPMENT = process.env.DEVELOPMENT === 'true'
+
 /** Detect provider purely from model name — no env var needed */
 export function detectProvider(model: string): LLMProvider {
   if (model.startsWith('black-forest-labs/') || model.startsWith('stabilityai/')) {
@@ -10,6 +13,19 @@ export function detectProvider(model: string): LLMProvider {
   }
   if (model.startsWith('gemini-')) return 'gemini'
   return 'groq'
+}
+
+/**
+ * In production only Gemini is supported.
+ * In development (DEVELOPMENT=true) Groq and HuggingFace are also allowed.
+ */
+export function assertProviderAllowed(provider: LLMProvider): void {
+  if (!IS_DEVELOPMENT && provider !== 'gemini') {
+    throw new Error(
+      `LLM provider "${provider}" is only available in development. ` +
+      `Set DEVELOPMENT=true in your .env.local to enable it.`,
+    )
+  }
 }
 
 interface ChatInput {
@@ -27,6 +43,7 @@ interface ChatResult {
 
 export async function llmChat(input: ChatInput): Promise<ChatResult> {
   const provider = detectProvider(input.model)
+  assertProviderAllowed(provider)
   if (provider === 'gemini') return geminiChat(input)
   if (provider === 'huggingface') return huggingFaceImageGen(input)
   return groqChat(input)

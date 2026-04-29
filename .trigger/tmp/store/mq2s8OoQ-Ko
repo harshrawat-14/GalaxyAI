@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["../../../../../../../../../src/trigger/index.ts"],
-  "sourcesContent": ["// Trigger.dev SDK v4 — tasks are defined in individual files and exported directly.\n// No client initialization needed; configure via environment variables.\nexport { llmTask } from './llm-task'\nexport { cropImageTask } from './crop-image-task'\nexport { extractFrameTask } from './extract-frame-task'\n"],
-  "mappings": ";;;;;;;;;;;;;;;;;AAAA;",
-  "names": []
-}

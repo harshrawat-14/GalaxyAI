@@ -490,17 +490,31 @@ export const VIDEO_FRAME_WORKFLOW: { name: string; nodes: FlowNode[]; edges: Flo
   ],
 }
 
-/** Pre-built Product Marketing Kit Generator workflow */
+/**
+ * Pre-built "Face Fusion" sample workflow.
+ *
+ * Pipeline:
+ *   Image → Crop (face close-up)
+ *          ↓ image
+ *        LLM-1 (gemini-2.5-flash-image) ← prompt: add stylised beard
+ *          ↓ image
+ *        LLM-2 (gemini-2.5-flash-image) ← image: extracted video frame
+ *          prompt: merge both faces — left half real, right half video character
+ *   Video → Extract Frame (mid-point)
+ *          ↓ image ──────────────────────────────────────────────────────↗
+ *
+ * Every node's output feeds the next node — no independent / floating branches.
+ */
 export const SAMPLE_WORKFLOW: { nodes: FlowNode[]; edges: FlowEdge[] } = {
   nodes: [
-    // Branch A ─────────────────────────────────────────────
+    // ── Top branch: image ─────────────────────────────────────────────────────
     {
       id: 'node-upload-image',
       type: 'upload-image',
-      position: { x: 80, y: 80 },
+      position: { x: 60, y: 80 },
       data: {
         type: 'upload-image',
-        label: 'Product Photo',
+        label: 'Portrait Photo',
         imageUrl: null,
         fileName: null,
         isRunning: false,
@@ -509,13 +523,13 @@ export const SAMPLE_WORKFLOW: { nodes: FlowNode[]; edges: FlowEdge[] } = {
     {
       id: 'node-crop',
       type: 'crop-image',
-      position: { x: 360, y: 80 },
+      position: { x: 340, y: 80 },
       data: {
         type: 'crop-image',
-        label: 'Crop Product',
+        label: 'Crop Face',
         imageUrl: null,
         xPercent: 10,
-        yPercent: 10,
+        yPercent: 5,
         widthPercent: 80,
         heightPercent: 80,
         resultUrl: null,
@@ -525,53 +539,41 @@ export const SAMPLE_WORKFLOW: { nodes: FlowNode[]; edges: FlowEdge[] } = {
       } satisfies CropImageNodeData,
     },
     {
-      id: 'node-sys-prompt',
+      id: 'node-style-prompt',
       type: 'text',
-      position: { x: 80, y: 300 },
+      position: { x: 340, y: 300 },
       data: {
         type: 'text',
-        label: 'Marketing Persona',
-        content:
-          'You are a professional marketing copywriter. Generate a compelling one-paragraph product description.',
+        label: 'Style Instruction',
+        content: 'Add a stylised curly beard and moustache to this face. Keep everything else identical.',
         isRunning: false,
       } satisfies TextNodeData,
     },
     {
-      id: 'node-product-details',
-      type: 'text',
-      position: { x: 80, y: 440 },
-      data: {
-        type: 'text',
-        label: 'Product Details',
-        content:
-          'Product: Wireless Bluetooth Headphones. Features: Noise cancellation, 30-hour battery, foldable design.',
-        isRunning: false,
-      } satisfies TextNodeData,
-    },
-    {
+      // Takes the cropped face + text prompt → generates a styled face image
       id: 'node-llm-1',
       type: 'llm',
-      position: { x: 640, y: 200 },
+      position: { x: 640, y: 160 },
       data: {
         type: 'llm',
-        label: 'Generate Description',
-        model: 'llama-3.3-70b-versatile',
+        label: 'Style Face',
+        model: 'gemini-2.5-flash-image',
         systemPrompt: '',
         userMessage: '',
         result: null,
-        resultIsImage: false,
+        resultIsImage: true,
         isRunning: false,
         error: null,
       } satisfies LLMNodeData,
     },
-    // Branch B ─────────────────────────────────────────────
+    // ── Bottom branch: video ──────────────────────────────────────────────────
     {
       id: 'node-upload-video',
       type: 'upload-video',
-      position: { x: 80, y: 620 },
+      position: { x: 60, y: 500 },
       data: {
         type: 'upload-video',
-        label: 'Product Demo Video',
+        label: 'Reference Video',
         videoUrl: null,
         fileName: null,
         isRunning: false,
@@ -580,7 +582,7 @@ export const SAMPLE_WORKFLOW: { nodes: FlowNode[]; edges: FlowEdge[] } = {
     {
       id: 'node-extract',
       type: 'extract-frame',
-      position: { x: 360, y: 620 },
+      position: { x: 340, y: 500 },
       data: {
         type: 'extract-frame',
         label: 'Extract Mid Frame',
@@ -592,31 +594,32 @@ export const SAMPLE_WORKFLOW: { nodes: FlowNode[]; edges: FlowEdge[] } = {
         connectedInputs: { video_url: true },
       } satisfies ExtractFrameNodeData,
     },
-    // Convergence ──────────────────────────────────────────
+    // ── Convergence: merge styled face + video frame ──────────────────────────
     {
-      id: 'node-social-prompt',
+      id: 'node-merge-prompt',
       type: 'text',
-      position: { x: 640, y: 620 },
+      position: { x: 640, y: 480 },
       data: {
         type: 'text',
-        label: 'Social Media Persona',
+        label: 'Merge Instruction',
         content:
-          'You are a social media manager. Create a tweet-length marketing post based on the product image and video frame.',
+          'Merge the two faces into one image. The left half must be the first face, the right half must be the second face. Blend them seamlessly at the centre.',
         isRunning: false,
       } satisfies TextNodeData,
     },
     {
+      // Takes styled face image + video frame image + merge prompt → final composite
       id: 'node-llm-2',
       type: 'llm',
-      position: { x: 960, y: 400 },
+      position: { x: 960, y: 320 },
       data: {
         type: 'llm',
-        label: 'Final Marketing Post',
-        model: 'llama-3.3-70b-versatile',
+        label: 'Merge Faces',
+        model: 'gemini-2.5-flash-image',
         systemPrompt: '',
         userMessage: '',
         result: null,
-        resultIsImage: false,
+        resultIsImage: true,
         isRunning: false,
         error: null,
       } satisfies LLMNodeData,
@@ -624,36 +627,19 @@ export const SAMPLE_WORKFLOW: { nodes: FlowNode[]; edges: FlowEdge[] } = {
   ],
 
   edges: [
-    // Branch A connections
+    // Image → Crop
     {
       id: 'e1',
       source: 'node-upload-image',
       target: 'node-crop',
       sourceHandle: 'output',
       targetHandle: 'image_url',
-      style: { stroke: '#8b5cf6', strokeWidth: 2 },
+      style: { stroke: '#f59e0b', strokeWidth: 2 },
       type: 'animated',
     },
+    // Crop → Style LLM (image input)
     {
       id: 'e2',
-      source: 'node-sys-prompt',
-      target: 'node-llm-1',
-      sourceHandle: 'output',
-      targetHandle: 'system_prompt',
-      style: { stroke: '#8b5cf6', strokeWidth: 2 },
-      type: 'animated',
-    },
-    {
-      id: 'e3',
-      source: 'node-product-details',
-      target: 'node-llm-1',
-      sourceHandle: 'output',
-      targetHandle: 'user_message',
-      style: { stroke: '#8b5cf6', strokeWidth: 2 },
-      type: 'animated',
-    },
-    {
-      id: 'e4',
       source: 'node-crop',
       target: 'node-llm-1',
       sourceHandle: 'output',
@@ -661,51 +647,54 @@ export const SAMPLE_WORKFLOW: { nodes: FlowNode[]; edges: FlowEdge[] } = {
       style: { stroke: '#f59e0b', strokeWidth: 2 },
       type: 'animated',
     },
-    // Branch B connections
+    // Style prompt → Style LLM (user message)
     {
-      id: 'e5',
+      id: 'e3',
+      source: 'node-style-prompt',
+      target: 'node-llm-1',
+      sourceHandle: 'output',
+      targetHandle: 'user_message',
+      style: { stroke: '#8b5cf6', strokeWidth: 2 },
+      type: 'animated',
+    },
+    // Video → Extract Frame
+    {
+      id: 'e4',
       source: 'node-upload-video',
       target: 'node-extract',
       sourceHandle: 'output',
       targetHandle: 'video_url',
-      style: { stroke: '#8b5cf6', strokeWidth: 2 },
+      style: { stroke: '#ef4444', strokeWidth: 2 },
       type: 'animated',
     },
-    // Convergence connections
+    // Style LLM output → Merge LLM (first image)
     {
-      id: 'e6',
-      source: 'node-social-prompt',
-      target: 'node-llm-2',
-      sourceHandle: 'output',
-      targetHandle: 'system_prompt',
-      style: { stroke: '#8b5cf6', strokeWidth: 2 },
-      type: 'animated',
-    },
-    {
-      id: 'e7',
+      id: 'e5',
       source: 'node-llm-1',
       target: 'node-llm-2',
       sourceHandle: 'output',
-      targetHandle: 'user_message',
-      style: { stroke: '#8b5cf6', strokeWidth: 2 },
-      type: 'animated',
-    },
-    {
-      id: 'e8',
-      source: 'node-crop',
-      target: 'node-llm-2',
-      sourceHandle: 'output',
       targetHandle: 'images',
-      style: { stroke: '#f59e0b', strokeWidth: 2 },
+      style: { stroke: '#4285f4', strokeWidth: 2 },
       type: 'animated',
     },
+    // Extracted frame → Merge LLM (second image)
     {
-      id: 'e9',
+      id: 'e6',
       source: 'node-extract',
       target: 'node-llm-2',
       sourceHandle: 'output',
       targetHandle: 'images',
       style: { stroke: '#06b6d4', strokeWidth: 2 },
+      type: 'animated',
+    },
+    // Merge prompt → Merge LLM (user message)
+    {
+      id: 'e7',
+      source: 'node-merge-prompt',
+      target: 'node-llm-2',
+      sourceHandle: 'output',
+      targetHandle: 'user_message',
+      style: { stroke: '#8b5cf6', strokeWidth: 2 },
       type: 'animated',
     },
   ],

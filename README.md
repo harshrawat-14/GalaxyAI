@@ -1,6 +1,6 @@
 # NextFlow — Visual LLM Workflow Builder
 
-A Krea.ai-inspired visual workflow canvas that lets you compose and execute multi-modal AI pipelines entirely in the browser. Connect nodes, run Gemini LLM calls, upload images and videos to a CDN, crop frames, and track every run in the history sidebar.
+A Krea.ai-inspired visual workflow canvas for composing and executing multi-modal AI pipelines in the browser. Connect nodes, run Gemini LLM calls, upload images and videos, crop frames, extract video frames, and track every run in the history sidebar.
 
 ---
 
@@ -8,30 +8,31 @@ A Krea.ai-inspired visual workflow canvas that lets you compose and execute mult
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| Canvas | React Flow / @xyflow/react v12 |
+| Framework | Next.js (App Router) |
+| Canvas | React Flow (`@xyflow/react`) |
 | Auth | Clerk |
 | Database | Prisma + Neon PostgreSQL |
 | State | Zustand + zundo (undo/redo) + Immer |
-| LLM | Groq (via `groq-sdk`, OpenAI-compatible API) |
-| Background tasks | Trigger.dev SDK v4 |
-| File uploads | Uppy v5 + Transloadit |
+| LLM | Google Gemini (`@google/generative-ai`) |
+| Background tasks | Trigger.dev v3 |
+| File uploads | Uppy + Transloadit |
 | Styling | Tailwind CSS v4 |
-| UI primitives | Radix UI, Lucide icons, Sonner toasts |
+| UI | Radix UI, Lucide icons, Sonner toasts |
 
 ---
 
 ## Features
 
-- **Drag-and-drop canvas** — add Text, Upload Image, Upload Video, LLM, Crop Image, and Extract Frame nodes
+- **Drag-and-drop canvas** — Text, Upload Image, Upload Video, Run LLM, Crop Image, Extract Frame nodes
 - **Typed connections** — DAG validation prevents cycles and type-mismatched connections
-- **Animated edges** — dashed purple edges with glow on selection
-- **Undo / redo** — 50-step temporal history via zundo
+- **Animated edges** — dashed colored edges with glow on selection
+- **Undo / redo** — 50-step history via zundo
 - **Right-click context menu** — Run, Duplicate, or Delete any node
-- **Per-node error boundaries** — one crashing node never takes down the canvas
-- **Transloadit CDN uploads** — images and videos uploaded to a CDN with signed assembly params; falls back to local object URL if unconfigured
-- **Workflow history sidebar** — live-polls run history every 3 s, skeleton loading state
+- **Multi-image LLM inputs** — connect multiple image/frame outputs into one LLM node
+- **Transloadit CDN uploads** — signed assembly params; falls back to local object URL if unconfigured
+- **Workflow history sidebar** — live-polls run history every 3 s
 - **Persistent workflows** — auto-saved to Neon PostgreSQL via Prisma
+- **Sample workflow** — pre-built "Face Fusion" pipeline loaded on first visit
 
 ---
 
@@ -40,13 +41,13 @@ A Krea.ai-inspired visual workflow canvas that lets you compose and execute mult
 - Node.js ≥ 20
 - A [Neon](https://neon.tech) PostgreSQL database
 - A [Clerk](https://clerk.com) application
-- A [Groq](https://console.groq.com) API key for LLM inference
-- (Optional) A [Trigger.dev](https://trigger.dev) project for background FFmpeg tasks
+- A [Google AI Studio](https://aistudio.google.com) Gemini API key (billing enabled for image generation)
+- (Optional) A [Trigger.dev](https://trigger.dev) project for FFmpeg background tasks
 - (Optional) A [Transloadit](https://transloadit.com) account for CDN uploads
 
 ---
 
-## Setup
+## Local Setup
 
 ### 1. Install dependencies
 
@@ -56,27 +57,48 @@ npm install
 
 ### 2. Configure environment variables
 
-Copy the table below into `.env.local` (or edit `.env`) and fill in real values.
+Create `.env.local` in the project root:
 
-| Variable | Required | Description | Where to get it |
-|---|---|---|---|
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | ✅ | Clerk frontend key | Clerk Dashboard → API Keys |
-| `CLERK_SECRET_KEY` | ✅ | Clerk backend key | Clerk Dashboard → API Keys |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | ✅ | Sign-in route (use `/sign-in`) | — |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | ✅ | Sign-up route (use `/sign-up`) | — |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | ✅ | Redirect after sign-in (use `/workflow`) | — |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | ✅ | Redirect after sign-up (use `/workflow`) | — |
-| `DATABASE_URL` | ✅ | Neon PostgreSQL connection string | Neon Console → Connection Details |
-| `GROQ_API_KEY` | ✅ | Groq API key (starts with `gsk_`) | [console.groq.com](https://console.groq.com) → API Keys |
-| `TRIGGER_API_KEY` | ☑ optional | Trigger.dev secret key | Trigger.dev Dashboard → API Keys |
-| `TRIGGER_API_URL` | ☑ optional | Trigger.dev API URL (default: `https://api.trigger.dev`) | — |
-| `TRANSLOADIT_KEY` | ☑ optional | Transloadit account key | Transloadit Console → Credentials |
-| `TRANSLOADIT_SECRET` | ☑ optional | Transloadit account secret | Transloadit Console → Credentials |
-| `TRANSLOADIT_TEMPLATE_ID_IMAGE` | ☑ optional | Template ID for image uploads | Transloadit Console → Templates |
-| `TRANSLOADIT_TEMPLATE_ID_VIDEO` | ☑ optional | Template ID for video uploads | Transloadit Console → Templates |
-| `NEXT_PUBLIC_TRANSLOADIT_KEY` | ☑ optional | Same as `TRANSLOADIT_KEY` (client-side feature flag) | — |
+```env
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/workflow
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/workflow
 
-> **Tip:** For image analysis, choose `meta-llama/llama-4-scout-17b-16e-instruct` or `meta-llama/llama-4-maverick-17b-128e-instruct` — these are Groq's vision-capable models. Text-only models (Llama 3, Mixtral, Gemma) will ignore connected image inputs.
+# Neon PostgreSQL
+DATABASE_URL=postgresql://...
+
+# Gemini (required — only LLM provider in production)
+GEMINI_API_KEY=AIza...
+
+# Trigger.dev (optional — required for Crop and Extract Frame nodes)
+TRIGGER_API_KEY=tr_dev_...
+TRIGGER_API_URL=https://api.trigger.dev
+TRIGGER_PROJECT_REF=proj_...
+
+# Transloadit (optional — required for CDN uploads)
+TRANSLOADIT_KEY=...
+TRANSLOADIT_SECRET=...
+NEXT_PUBLIC_TRANSLOADIT_KEY=...
+NEXT_PUBLIC_TRANSLOADIT_TEMPLATE_ID_IMAGE=...
+NEXT_PUBLIC_TRANSLOADIT_TEMPLATE_ID_VIDEO=...
+TRANSLOADIT_TEMPLATE_ID_IMAGE=...
+TRANSLOADIT_TEMPLATE_ID_VIDEO=...
+
+# Development mode — also enables Groq and HuggingFace model options in the UI
+# Omit (or set to false) for production
+DEVELOPMENT=true
+NEXT_PUBLIC_DEVELOPMENT=true
+
+# Groq (dev only)
+GROQ_API_KEY=gsk_...
+
+# HuggingFace (dev only)
+HF_TOKEN=hf_...
+```
 
 ### 3. Push the database schema
 
@@ -84,7 +106,7 @@ Copy the table below into `.env.local` (or edit `.env`) and fill in real values.
 npx prisma db push
 ```
 
-### 4. Run the development server
+### 4. Run the dev server
 
 ```bash
 npm run dev
@@ -94,23 +116,68 @@ Open [http://localhost:3000](http://localhost:3000). You will be redirected to s
 
 ---
 
-## Running a production build
+## LLM Providers
 
-```bash
-npm run build
-npm start
-```
+| Provider | Models | Available |
+|---|---|---|
+| **Gemini** | `gemini-2.5-flash`, `gemini-2.5-pro`, image models | Always (production + dev) |
+| **Groq** | Llama, Mixtral, Gemma | Dev only (`DEVELOPMENT=true`) |
+| **HuggingFace** | FLUX.1-schnell | Dev only (`DEVELOPMENT=true`) |
+
+In production, only set `GEMINI_API_KEY`. The Groq and HuggingFace model options will not appear in the UI, and any attempt to call them server-side will return an error.
 
 ---
 
 ## Deployment (Vercel)
 
-1. Push the repo to GitHub.
-2. Import the project in [Vercel](https://vercel.com/new).
-3. Add every environment variable from the table above under **Settings → Environment Variables**.
-4. Deploy. Vercel detects Next.js automatically.
+### 1. Push to GitHub
 
-> After deployment, add your Vercel domain to Clerk's **Allowed Origins** and update the Clerk redirect URLs if you changed them.
+```bash
+git add .
+git commit -m "initial commit"
+git push origin main
+```
+
+### 2. Import on Vercel
+
+1. Go to [vercel.com/new](https://vercel.com/new) and import your GitHub repository.
+2. Vercel auto-detects Next.js — no framework config needed.
+
+### 3. Set environment variables
+
+In **Settings → Environment Variables**, add every variable from the table below.
+
+| Variable | Required | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | ✅ | Clerk Dashboard → API Keys |
+| `CLERK_SECRET_KEY` | ✅ | Clerk Dashboard → API Keys |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | ✅ | `/sign-in` |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | ✅ | `/sign-up` |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | ✅ | `/workflow` |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | ✅ | `/workflow` |
+| `DATABASE_URL` | ✅ | Neon Console → Connection Details |
+| `GEMINI_API_KEY` | ✅ | Google AI Studio → API Keys |
+| `TRIGGER_API_KEY` | optional | Trigger.dev Dashboard → API Keys |
+| `TRIGGER_API_URL` | optional | `https://api.trigger.dev` |
+| `TRIGGER_PROJECT_REF` | optional | Trigger.dev Dashboard |
+| `TRANSLOADIT_KEY` | optional | Transloadit Console → Credentials |
+| `TRANSLOADIT_SECRET` | optional | Transloadit Console → Credentials |
+| `NEXT_PUBLIC_TRANSLOADIT_KEY` | optional | Same value as `TRANSLOADIT_KEY` |
+| `TRANSLOADIT_TEMPLATE_ID_IMAGE` | optional | Transloadit Console → Templates |
+| `TRANSLOADIT_TEMPLATE_ID_VIDEO` | optional | Transloadit Console → Templates |
+| `NEXT_PUBLIC_TRANSLOADIT_TEMPLATE_ID_IMAGE` | optional | Same as above |
+| `NEXT_PUBLIC_TRANSLOADIT_TEMPLATE_ID_VIDEO` | optional | Same as above |
+
+> Do **not** set `DEVELOPMENT` or `NEXT_PUBLIC_DEVELOPMENT` on Vercel — omitting them is what enables production mode (Gemini only).
+
+### 4. Configure Clerk for your Vercel domain
+
+1. In Clerk Dashboard → **Domains**, add your `*.vercel.app` URL (or custom domain).
+2. In Clerk Dashboard → **Paths**, confirm the sign-in / sign-up URLs match what you set above.
+
+### 5. Deploy
+
+Click **Deploy**. Vercel will run `npx prisma generate && next build` automatically (configured in `vercel.json`).
 
 ---
 
@@ -120,90 +187,74 @@ npm start
 src/
 ├── app/
 │   ├── api/
-│   │   ├── trigger/          # Trigger.dev SDK v4 metadata endpoint
-│   │   ├── upload/signature/ # Signs Transloadit assembly params
+│   │   ├── upload/signature/     # Signs Transloadit assembly params
 │   │   └── workflow/
-│   │       ├── route.ts          # Create / list workflows
-│   │       ├── [id]/route.ts     # Get / update / delete a workflow
-│   │       ├── [id]/run/         # Start a workflow run
-│   │       ├── [id]/runs/        # Poll run history
-│   │       └── execute-node/     # Execute a single node server-side
-│   ├── workflow/             # Main canvas page (protected)
-│   ├── sign-in/ sign-up/     # Clerk auth pages
-│   └── page.tsx              # Landing redirect
+│   │       ├── route.ts              # Create / list workflows
+│   │       ├── [id]/route.ts         # Get / update / delete a workflow
+│   │       ├── [id]/run/             # Start a workflow run
+│   │       ├── [id]/runs/            # Poll run history
+│   │       └── execute-node/         # Execute a single node server-side
+│   ├── workflow/                 # Main canvas page (protected by Clerk)
+│   ├── sign-in/ sign-up/         # Clerk auth pages
+│   └── page.tsx                  # Landing redirect
 ├── components/
 │   ├── canvas/
-│   │   ├── WorkflowCanvas.tsx    # ReactFlow wrapper
+│   │   ├── WorkflowCanvas.tsx        # ReactFlow wrapper
 │   │   └── edges/AnimatedEdge.tsx
-│   ├── nodes/                # TextNode, LLMNode, UploadImageNode, …
-│   └── sidebar/              # LeftSidebar (node palette) + RightSidebar (history)
+│   ├── nodes/                    # TextNode, LLMNode, UploadImageNode, …
+│   └── sidebar/                  # LeftSidebar (palette) + RightSidebar (history)
 ├── store/
-│   └── workflow-store.ts     # Zustand + zundo + Immer store
-├── trigger/                  # Trigger.dev background tasks (LLM, crop, extract-frame)
-├── lib/                      # Prisma client, Trigger.dev configure, utils
-└── types/                    # Workflow and node TypeScript types
+│   └── workflow-store.ts         # Zustand + zundo + Immer store
+├── trigger/                      # Trigger.dev background tasks (LLM, crop, extract-frame)
+├── lib/
+│   ├── llm-client.ts             # LLM routing (Gemini / Groq / HuggingFace)
+│   ├── sample-workflow.ts        # Pre-built sample workflow + starter templates
+│   └── utils.ts
+└── types/                        # Workflow and node TypeScript types
 ```
 
 ---
 
-## User Guide
-
-### Adding nodes
-
-Drag any node type from the **left sidebar** onto the canvas, or click a node type to place it at a random position.
+## Node Reference
 
 | Node | Purpose |
 |---|---|
-| **Text** | Static text input. Wire it into an LLM's user message handle. |
-| **Upload Image** | Drop or click to upload an image. Uploads to CDN if Transloadit is configured; falls back to a local object URL. |
-| **Upload Video** | Same as Upload Image but for video files. |
-| **Run LLM** | Calls Groq. Choose from Llama, Mixtral, or Gemma models. Configure the system prompt and user message in-node. Vision-capable models accept image inputs. |
-| **Crop Image** | Crops an image to a region specified by x/y/width/height percentages. Requires Trigger.dev runtime for FFmpeg. |
-| **Extract Frame** | Extracts a single frame from a video at a given timestamp. Requires Trigger.dev runtime for FFmpeg. |
+| **Text** | Static text input — wire into an LLM's system prompt or user message handle |
+| **Upload Image** | Upload an image via Transloadit CDN (or local object URL as fallback) |
+| **Upload Video** | Same as Upload Image but for video files |
+| **Run LLM** | Call Gemini (or Groq/HuggingFace in dev). Accepts multiple image inputs. Choose model in-node. |
+| **Crop Image** | Crop an image to a region defined by x/y/width/height percentages (FFmpeg via Trigger.dev) |
+| **Extract Frame** | Pull a single frame from a video at a given timestamp (FFmpeg via Trigger.dev) |
 
 ### Connecting nodes
 
-Drag from an output handle (right side, colored dot) to a compatible input handle (left side). The canvas rejects:
-- Connections that would create a cycle
+Drag from an output handle (right side) to a compatible input handle (left side). The canvas rejects:
+- Connections that create a cycle
 - Type-mismatched connections (e.g. video output → image input)
-- Duplicate connections to the same input handle
+- Duplicate connections to the same single-input handle
 
 ### Running a workflow
 
-Use the **Run** button in the toolbar. Three modes are available:
-
-| Mode | Description |
+| Mode | How |
 |---|---|
-| **Full** | Executes all nodes in topological order |
-| **Selection** | Executes only the currently selected nodes |
-| **Single** | Right-click any node → **Run this node** |
+| **Full** | Click **Run** in the toolbar |
+| **Selection** | Select nodes first, then click Run |
+| **Single node** | Right-click any node → **Run this node** |
 
 ### Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
 | `Delete` / `Backspace` | Delete selected nodes / edges |
-| `Shift + drag` | Multi-select nodes |
 | `Ctrl/Cmd + Z` | Undo |
 | `Ctrl/Cmd + Shift + Z` | Redo |
 | Scroll | Zoom |
-| Middle-click / right-click drag | Pan |
-
-### Node context menu
-
-Right-click any node (or click the `···` button that appears on hover) for:
-- **Run this node** — execute just this node
-- **Duplicate** — clone the node at +40 px offset
-- **Delete** — remove the node and all connected edges
-
-### Workflow history
-
-The **right sidebar** shows every run for the current workflow, polling every 3 seconds. Click a run to expand it and see per-node status, duration, and output preview.
+| Middle-click drag | Pan |
 
 ---
 
-## Known limitations
+## Known Limitations
 
-- **Crop Image** and **Extract Frame** nodes require a live Trigger.dev worker with FFmpeg available. Without it they return a placeholder message.
-- Transloadit CDN uploads require real template IDs created in the Transloadit console. With placeholder values the signature endpoint omits `template_id` and files upload to a default bucket (may not transcode).
-- Workflow execution runs each node sequentially in the API route — parallelism via Trigger.dev is only used for the FFmpeg nodes.
+- **Crop Image** and **Extract Frame** require a live Trigger.dev worker with FFmpeg. Without it they return a placeholder message.
+- **Gemini image generation** (`gemini-2.5-flash-image` and similar) requires a billing-enabled Google AI project.
+- Transloadit CDN uploads require real template IDs from the Transloadit console. With placeholder values, files may upload to a default bucket without transcoding.

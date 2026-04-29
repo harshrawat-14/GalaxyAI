@@ -5,8 +5,10 @@ import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { Brain, ChevronDown } from 'lucide-react'
 import { BaseNode } from './BaseNode'
 import { useWorkflowStore } from '@/store/workflow-store'
-import type { LLMNodeData, LLMModel, GeminiModel, HuggingFaceModel } from '@/types/nodes'
+import type { LLMNodeData, LLMModel, GroqModel, GeminiModel, HuggingFaceModel } from '@/types/nodes'
 import { cn } from '@/lib/utils'
+
+const IS_DEV = process.env.NEXT_PUBLIC_DEVELOPMENT === 'true'
 
 const GEMINI_TEXT_MODELS: GeminiModel[] = [
   'gemini-2.5-flash',
@@ -19,6 +21,15 @@ const GEMINI_IMAGE_MODELS_LIST: GeminiModel[] = [
   'gemini-2.5-flash-image',
   'gemini-3-pro-image-preview',
   'gemini-3.1-flash-image-preview',
+]
+
+const GROQ_MODELS: GroqModel[] = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'mixtral-8x7b-32768',
+  'gemma2-9b-it',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'meta-llama/llama-4-maverick-17b-128e-instruct',
 ]
 
 const HF_IMAGE_MODELS: HuggingFaceModel[] = [
@@ -133,11 +144,20 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
                 <option key={m} value={m}>{m}</option>
               ))}
             </optgroup>
-            <optgroup label="HuggingFace — Image (free)">
-              {HF_IMAGE_MODELS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </optgroup>
+            {IS_DEV && (
+              <>
+                <optgroup label="Groq — Text (dev only)">
+                  {GROQ_MODELS.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="HuggingFace — Image (dev only)">
+                  {HF_IMAGE_MODELS.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </optgroup>
+              </>
+            )}
           </select>
           <ChevronDown
             size={12}
