@@ -1,10 +1,11 @@
 'use client'
 
-import { forwardRef, useCallback, useState } from 'react'
+import { forwardRef, useCallback, useRef, useState } from 'react'
 import {
   Play,
   Save,
   Download,
+  Upload,
   Undo2,
   Redo2,
   Zap,
@@ -27,6 +28,7 @@ export function CanvasToolbar() {
   const isExecuting = useWorkflowStore((s) => s?.isExecuting ?? false)
   const { executeWorkflow, cancelExecution } = useWorkflowExecution()
   const [isSaving, setIsSaving] = useState(false)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const undo = useTemporalStore((s) => s.undo)
   const redo = useTemporalStore((s) => s.redo)
@@ -70,6 +72,33 @@ export function CanvasToolbar() {
     setNodes([])
     setEdges([])
     toast.success('Canvas cleared')
+  }, [])
+
+  const handleImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const json = JSON.parse(ev.target?.result as string) as {
+          name?: string
+          nodes?: unknown[]
+          edges?: unknown[]
+        }
+        const { setNodes, setEdges, setWorkflowName, setWorkflowId } =
+          useWorkflowStore.getState()
+        if (json.name) setWorkflowName(json.name)
+        setNodes((json.nodes ?? []) as Parameters<typeof setNodes>[0])
+        setEdges((json.edges ?? []) as Parameters<typeof setEdges>[0])
+        setWorkflowId(null)
+        useWorkflowStore.setState({ isDirty: true })
+        toast.success('Workflow imported')
+      } catch {
+        toast.error('Invalid workflow JSON')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
   }, [])
 
   const handleExport = useCallback(() => {
@@ -137,7 +166,7 @@ export function CanvasToolbar() {
 
       <div className="w-px h-4 bg-border flex-shrink-0" />
 
-      {/* Save / Clear / Export */}
+      {/* Save / Clear / Export / Import */}
       <div className="flex items-center gap-0.5">
         <Tooltip content="Save (⌘S)" side="bottom">
           <ToolbarButton onClick={() => void handleSave()} disabled={isSaving}>
@@ -149,6 +178,18 @@ export function CanvasToolbar() {
             <Download size={14} />
           </ToolbarButton>
         </Tooltip>
+        <Tooltip content="Import JSON" side="bottom">
+          <ToolbarButton onClick={() => importInputRef.current?.click()}>
+            <Upload size={14} />
+          </ToolbarButton>
+        </Tooltip>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={handleImport}
+        />
         <Tooltip content="Clear canvas" side="bottom">
           <ToolbarButton onClick={handleClearCanvas}>
             <Trash2 size={14} />
