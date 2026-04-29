@@ -77,7 +77,7 @@ export const LLMNode = memo(function LLMNode({ id, data, selected }: NodeProps) 
       title="Run LLM"
       icon={<Brain size={12} />}
       headerColor={headerColor(currentModel)}
-      minWidth={320}
+      minWidth={210}
     >
       {/* Input: system_prompt */}
       <Handle

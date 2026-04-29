@@ -51,7 +51,7 @@ interface WorkflowStore {
   setViewport: (viewport: Viewport) => void
   markClean: () => void
   loadWorkflow: (payload: {
-    id: string
+    id: string | null
     name: string
     nodes: FlowNode[]
     edges: FlowEdge[]

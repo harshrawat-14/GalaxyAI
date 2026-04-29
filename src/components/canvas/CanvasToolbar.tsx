@@ -8,11 +8,10 @@ import {
   Undo2,
   Redo2,
   Zap,
-  Square,
   StopCircle,
-  LayoutDashboard,
   Loader2,
   Trash2,
+  Square,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useWorkflowStore, useTemporalStore } from '@/store/workflow-store'
@@ -89,60 +88,77 @@ export function CanvasToolbar() {
   }, [])
 
   return (
-    <header className="flex items-center gap-3 px-4 h-12 bg-panel border-b border-border flex-shrink-0">
-      {/* Logo / Dashboard link */}
+    <header className="flex items-center gap-2 px-4 h-12 bg-panel border-b border-border flex-shrink-0">
+      {/* Logo */}
       <Tooltip content="Back to Dashboard" side="bottom">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 mr-2 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2 mr-3 hover:opacity-80 transition-opacity flex-shrink-0"
         >
           <div className="w-6 h-6 rounded-lg bg-accent flex items-center justify-center">
-            <Zap size={13} className="text-white" />
+            <Zap size={12} className="text-white fill-white" />
           </div>
-          <span className="text-sm font-semibold text-text hidden sm:block">NextFlow</span>
+          <span className="text-sm font-semibold text-text hidden sm:block tracking-tight">
+            NextFlow
+          </span>
         </Link>
       </Tooltip>
+
+      <div className="w-px h-4 bg-border flex-shrink-0" />
 
       {/* Workflow name */}
       <input
         value={workflowName}
-        onChange={(e) =>
-          useWorkflowStore.getState().setWorkflowName(e.target.value)
-        }
+        onChange={(e) => useWorkflowStore.getState().setWorkflowName(e.target.value)}
         className="bg-transparent text-sm text-text border-none outline-none
           hover:bg-surface focus:bg-surface px-2 py-1 rounded-md transition-colors
-          max-w-48 truncate"
+          max-w-52 truncate"
       />
 
       {isDirty && (
-        <span className="text-[10px] text-textmuted">• Unsaved</span>
+        <span className="text-[10px] text-textsub flex-shrink-0">·&nbsp;unsaved</span>
       )}
 
       <div className="flex-1" />
 
-      {/* Undo/Redo */}
-      <div className="flex items-center gap-1">
+      {/* Undo / Redo */}
+      <div className="flex items-center gap-0.5">
         <Tooltip content="Undo (⌘Z)" side="bottom">
-          <ToolbarButton
-            onClick={() => undo()}
-            disabled={pastStates.length === 0}
-          >
+          <ToolbarButton onClick={() => undo()} disabled={pastStates.length === 0}>
             <Undo2 size={14} />
           </ToolbarButton>
         </Tooltip>
         <Tooltip content="Redo (⌘⇧Z)" side="bottom">
-          <ToolbarButton
-            onClick={() => redo()}
-            disabled={futureStates.length === 0}
-          >
+          <ToolbarButton onClick={() => redo()} disabled={futureStates.length === 0}>
             <Redo2 size={14} />
           </ToolbarButton>
         </Tooltip>
       </div>
 
-      <div className="w-px h-4 bg-border" />
+      <div className="w-px h-4 bg-border flex-shrink-0" />
 
-      {/* Execution controls */}
+      {/* Save / Clear / Export */}
+      <div className="flex items-center gap-0.5">
+        <Tooltip content="Save (⌘S)" side="bottom">
+          <ToolbarButton onClick={() => void handleSave()} disabled={isSaving}>
+            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+          </ToolbarButton>
+        </Tooltip>
+        <Tooltip content="Export JSON" side="bottom">
+          <ToolbarButton onClick={handleExport}>
+            <Download size={14} />
+          </ToolbarButton>
+        </Tooltip>
+        <Tooltip content="Clear canvas" side="bottom">
+          <ToolbarButton onClick={handleClearCanvas}>
+            <Trash2 size={14} />
+          </ToolbarButton>
+        </Tooltip>
+      </div>
+
+      <div className="w-px h-4 bg-border flex-shrink-0" />
+
+      {/* Run controls */}
       <div className="flex items-center gap-2">
         {!isExecuting && selectedNodeIds.size > 0 && (
           <Tooltip
@@ -158,74 +174,26 @@ export function CanvasToolbar() {
               }
               variant="secondary"
             >
-              <Square size={13} />
+              <Square size={12} />
               <span className="text-xs">
-                Run {selectedNodeIds.size} node
-                {selectedNodeIds.size > 1 ? 's' : ''}
+                {selectedNodeIds.size} node{selectedNodeIds.size > 1 ? 's' : ''}
               </span>
             </ToolbarButton>
           </Tooltip>
         )}
 
         {isExecuting ? (
-          <Tooltip content="Cancel running workflow" side="bottom">
-            <ToolbarButton
-              onClick={() => cancelExecution()}
-              variant="danger"
-            >
-              <StopCircle size={13} className="fill-current" />
-              <span className="text-xs font-medium">Stop</span>
-            </ToolbarButton>
-          </Tooltip>
+          <ToolbarButton onClick={() => cancelExecution()} variant="danger">
+            <StopCircle size={13} className="fill-current" />
+            <span className="text-xs font-medium">Stop</span>
+          </ToolbarButton>
         ) : (
-          <Tooltip content="Run full workflow" side="bottom">
-            <ToolbarButton
-              onClick={() => void executeWorkflow('FULL')}
-              variant="primary"
-            >
-              <Play size={13} className="fill-current" />
-              <span className="text-xs font-medium">Run</span>
-            </ToolbarButton>
-          </Tooltip>
+          <ToolbarButton onClick={() => void executeWorkflow('FULL')} variant="primary">
+            <Play size={13} className="fill-current" />
+            <span className="text-xs font-medium">Run</span>
+          </ToolbarButton>
         )}
       </div>
-
-      <div className="w-px h-4 bg-border" />
-
-      {/* Save / Export / Dashboard */}
-      <Tooltip content="Save workflow (⌘S)" side="bottom">
-        <ToolbarButton onClick={() => void handleSave()} disabled={isSaving}>
-          {isSaving ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <Save size={14} />
-          )}
-        </ToolbarButton>
-      </Tooltip>
-
-      <Tooltip content="Clear canvas" side="bottom">
-        <ToolbarButton onClick={handleClearCanvas}>
-          <Trash2 size={14} />
-        </ToolbarButton>
-      </Tooltip>
-
-      <Tooltip content="Export as JSON" side="bottom">
-        <ToolbarButton onClick={handleExport}>
-          <Download size={14} />
-        </ToolbarButton>
-      </Tooltip>
-
-      <Tooltip content="Dashboard" side="bottom">
-        <Link
-          href="/dashboard"
-          className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-all duration-150',
-            'text-textmuted hover:text-text hover:bg-surface',
-          )}
-        >
-          <LayoutDashboard size={14} />
-        </Link>
-      </Tooltip>
     </header>
   )
 }
@@ -243,10 +211,8 @@ const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
         className={cn(
           'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-all duration-150',
           'disabled:opacity-40 disabled:cursor-not-allowed',
-          variant === 'ghost' &&
-            'text-textmuted hover:text-text hover:bg-surface',
-          variant === 'secondary' &&
-            'text-text bg-surface hover:bg-borderhov border border-border',
+          variant === 'ghost' && 'text-textmuted hover:text-text hover:bg-surface',
+          variant === 'secondary' && 'text-text bg-surface hover:bg-borderhov border border-border',
           variant === 'primary' && 'text-white bg-accent hover:bg-accenthov',
           variant === 'danger' && 'text-white bg-error hover:bg-error/80',
           className,

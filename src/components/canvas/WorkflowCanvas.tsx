@@ -147,8 +147,8 @@ export function WorkflowCanvas() {
         <Background
           variant={BackgroundVariant.Dots}
           gap={24}
-          size={1}
-          color="#ffffff14"
+          size={1.5}
+          color="#ffffff"
           style={{ backgroundColor: '#0a0a0a' }}
         />
 

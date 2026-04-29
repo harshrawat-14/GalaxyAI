@@ -17,13 +17,14 @@ import type { FlowNode, FlowEdge } from '@/types/workflow'
 function WorkflowLoader() {
   const searchParams = useSearchParams()
   const workflowIdFromUrl = searchParams.get('id')
+  const sampleParam = searchParams.get('sample')
+  const starterParam = searchParams.get('starter')
   const workflowId = useWorkflowStore((s) => s?.workflowId ?? null)
   const loadWorkflow = useWorkflowStore((s) => s?.loadWorkflow)
   const resetWorkflow = useWorkflowStore((s) => s?.resetWorkflow)
 
   useEffect(() => {
     if (workflowIdFromUrl) {
-      // Loading an existing workflow by URL id — only refetch if it's a different one
       if (workflowIdFromUrl !== workflowId) {
         fetch(`/api/workflow/${workflowIdFromUrl}`)
           .then((r) => r.json())
@@ -38,12 +39,46 @@ function WorkflowLoader() {
           })
           .catch(() => {/* fallback: start blank */})
       }
+    } else if (sampleParam) {
+      // Load a sample template into a fresh (unsaved) canvas
+      import('@/lib/sample-workflow').then(({ IMAGE_ANALYZER_WORKFLOW, VIDEO_FRAME_WORKFLOW, SAMPLE_WORKFLOW }) => {
+        const samples: Record<string, { name?: string; nodes: FlowNode[]; edges: FlowEdge[] }> = {
+          'image-analyzer': IMAGE_ANALYZER_WORKFLOW,
+          'video-frame': VIDEO_FRAME_WORKFLOW,
+          'product-kit': { name: 'Product Marketing Kit', ...SAMPLE_WORKFLOW },
+        }
+        const sample = samples[sampleParam]
+        if (sample) {
+          loadWorkflow?.({
+            id: null,
+            name: sample.name ?? 'Sample Workflow',
+            nodes: sample.nodes,
+            edges: sample.edges,
+          })
+        } else {
+          resetWorkflow?.()
+        }
+      }).catch(() => resetWorkflow?.())
+    } else if (starterParam) {
+      // Load a per-node starter mini-template
+      import('@/lib/sample-workflow').then(({ STARTER_TEMPLATES }) => {
+        const starter = STARTER_TEMPLATES[starterParam]
+        if (starter) {
+          loadWorkflow?.({
+            id: null,
+            name: starter.name,
+            nodes: starter.nodes,
+            edges: starter.edges,
+          })
+        } else {
+          resetWorkflow?.()
+        }
+      }).catch(() => resetWorkflow?.())
     } else {
-      // No ?id — start with a blank canvas
       resetWorkflow?.()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowIdFromUrl])
+  }, [workflowIdFromUrl, sampleParam, starterParam])
 
   return null
 }
@@ -57,7 +92,7 @@ function WorkflowContent() {
   return (
     <div className="flex flex-col h-screen bg-canvas overflow-hidden">
       <CanvasToolbar />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         <LeftSidebar />
         <WorkflowCanvas />
         <RightSidebar workflowId={workflowId} />

@@ -3,7 +3,9 @@
 /* ─── Design Tokens (Tailwind v4 @theme) ─── */
 @theme inline {
   /* Krea.ai exact color palette */
+  --color-sidebar:   #060606;
   --color-canvas:    #0a0a0a;
+  --color-elevated:  #0e0e0e;
   --color-surface:   #111111;
   --color-panel:     #161616;
   --color-border:    #222222;
