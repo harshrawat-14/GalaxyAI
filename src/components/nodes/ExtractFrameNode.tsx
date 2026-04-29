@@ -108,7 +108,8 @@ export const ExtractFrameNode = memo(function ExtractFrameNode({
         </label>
         {!isInputConnected('timestamp') && (
           <input
-            value={nodeData.timestamp}
+            type="text"
+            value={nodeData.timestamp ?? ''}
             onChange={(e) => update('timestamp', e.target.value)}
             placeholder='e.g. "30" or "50%"'
             disabled={nodeData.isRunning}
