@@ -476,24 +476,15 @@ function UserMenu({ displayName, email, imageUrl }: UserMenuProps) {
 
           <DropdownMenu.Separator className="mx-1.5 my-1.5 h-px bg-border" />
 
-          {/* Plan card — Premium Krea Style */}
-          <div className="px-1.5 py-1">
-            <div className="group rounded-xl border border-border bg-panel/50 hover:bg-panel hover:border-borderhov p-2.5 transition-all duration-200">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                  <Sparkles size={14} className="text-accent" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold text-text uppercase tracking-wider">Free Plan</p>
-                  <p className="text-[10px] text-textmuted">Basic Features</p>
-                </div>
+          {/* Workspace info */}
+          <div className="px-3 py-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-surface border border-border flex items-center justify-center flex-shrink-0">
+                <Sparkles size={12} className="text-textmuted" />
               </div>
-              <div className="h-1 w-full bg-border rounded-full overflow-hidden">
-                <div className="h-full w-1/3 bg-accent rounded-full shadow-[0_0_8px_#8b5cf6]" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-text">Free Plan</p>
-                <p className="text-[10px] text-textsub">Personal workspace</p>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-text">Personal Workspace</p>
+                <p className="text-[10px] text-textmuted truncate">{email}</p>
               </div>
             </div>
           </div>

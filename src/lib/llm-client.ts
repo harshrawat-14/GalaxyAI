@@ -108,23 +108,20 @@ async function geminiChat({ model, systemPrompt, userMessage, imageUrls = [] }: 
 
   const genAI = new GoogleGenerativeAI(apiKey)
 
-  // ── Image generation ──────────────────────────────────────────
+  // ── Gemini image generation (responseModalities) ─────────────
   if (GEMINI_IMAGE_MODELS.has(model)) {
     const imgModel = genAI.getGenerativeModel({ model })
-
     const result = await imgModel.generateContent({
       contents: [{ role: 'user', parts: [{ text: userMessage }] }],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
     })
-
     for (const part of result.response.candidates?.[0]?.content?.parts ?? []) {
       if (part.inlineData?.data) {
         const { data, mimeType } = part.inlineData
         return { text: `data:${mimeType};base64,${data}`, isImage: true }
       }
     }
-
     throw new Error('Gemini image generation returned no image data')
   }
 

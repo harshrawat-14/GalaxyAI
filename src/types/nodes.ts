@@ -51,9 +51,13 @@ export type GroqModel =
 
 export type GeminiModel =
   | 'gemini-2.5-flash'
+  | 'gemini-2.5-flash-preview-04-17'
   | 'gemini-2.5-pro'
+  | 'gemini-2.5-pro-preview-03-25'
   | 'gemini-2.0-flash'
   | 'gemini-2.0-flash-lite'
+  | 'gemini-1.5-flash'
+  | 'gemini-1.5-pro'
   | 'gemini-2.5-flash-image'
   | 'gemini-3-pro-image-preview'
   | 'gemini-3.1-flash-image-preview'

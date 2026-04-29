@@ -15,6 +15,43 @@ const HANDLE_STYLE = {
   background: '#06b6d4',
 }
 
+async function uploadWithTransloadit(file: File): Promise<string> {
+  const Uppy = (await import('@uppy/core')).default
+  const Transloadit = (await import('@uppy/transloadit')).default
+
+  const sigRes = await fetch('/api/upload/signature?type=video', { method: 'POST' })
+  if (!sigRes.ok) throw new Error('Failed to get upload signature')
+  const { params, signature } = (await sigRes.json()) as {
+    params: string
+    signature: string
+  }
+
+  return new Promise<string>((resolve, reject) => {
+    const uppy = new Uppy({ restrictions: { maxNumberOfFiles: 1 } })
+
+    uppy.use(Transloadit, {
+      assemblyOptions: {
+        params: JSON.parse(params) as Record<string, unknown>,
+        signature,
+      },
+      waitForEncoding: true,
+    })
+
+    uppy.on('transloadit:complete', (assembly) => {
+      const results = Object.values(assembly.results ?? {}).flat()
+      const first = results[0] as { ssl_url?: string; url?: string } | undefined
+      const cdnUrl = first?.ssl_url ?? first?.url
+      if (cdnUrl) resolve(cdnUrl)
+      else reject(new Error('No output URL from Transloadit'))
+    })
+
+    uppy.on('error', (err) => reject(err))
+
+    uppy.addFile({ name: file.name, type: file.type, data: file })
+    uppy.upload().catch(() => {})
+  })
+}
+
 async function uploadVideoToServer(file: File): Promise<string> {
   const formData = new FormData()
   formData.append('file', file)
@@ -51,9 +88,23 @@ export const UploadVideoNode = memo(function UploadVideoNode({
       })
 
       try {
-        const serverUrl = await uploadVideoToServer(file)
-        URL.revokeObjectURL(previewUrl)
-        updateNodeData<UploadVideoNodeData>(id, { videoUrl: serverUrl })
+        const transloaditKey = process.env.NEXT_PUBLIC_TRANSLOADIT_KEY
+        let uploaded = false
+        if (transloaditKey) {
+          try {
+            const cdnUrl = await uploadWithTransloadit(file)
+            URL.revokeObjectURL(previewUrl)
+            updateNodeData<UploadVideoNodeData>(id, { videoUrl: cdnUrl })
+            uploaded = true
+          } catch {
+            // fall through to local
+          }
+        }
+        if (!uploaded) {
+          const serverUrl = await uploadVideoToServer(file)
+          URL.revokeObjectURL(previewUrl)
+          updateNodeData<UploadVideoNodeData>(id, { videoUrl: serverUrl })
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Upload failed'
         setUploadError(`${msg} — local preview only, frame extraction won't work`)
@@ -93,9 +144,10 @@ export const UploadVideoNode = memo(function UploadVideoNode({
         <div className="relative group">
           <video
             src={nodeData.videoUrl}
-            className="w-full h-32 object-cover rounded-lg border border-border"
-            controls={false}
+            className="w-full h-32 rounded-lg border border-border"
+            controls
             muted
+            playsInline
           />
           {isUploading && (
             <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-canvas/60">

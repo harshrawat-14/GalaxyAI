@@ -12,9 +12,13 @@ const IS_DEV = process.env.NEXT_PUBLIC_DEVELOPMENT === 'true'
 
 const GEMINI_TEXT_MODELS: GeminiModel[] = [
   'gemini-2.5-flash',
+  'gemini-2.5-flash-preview-04-17',
   'gemini-2.5-pro',
+  'gemini-2.5-pro-preview-03-25',
   'gemini-2.0-flash',
   'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
 ]
 
 const GEMINI_IMAGE_MODELS_LIST: GeminiModel[] = [
