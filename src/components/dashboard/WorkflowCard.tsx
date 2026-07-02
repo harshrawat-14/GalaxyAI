@@ -117,7 +117,7 @@ function WorkflowCardMenu({
       {open && (
         <div
           data-testid="workflow-card-menu"
-          className="absolute right-0 top-full z-20 mt-2 w-[320px] rounded-[24px] border border-[#E5E7EB] bg-[#FFFFFF] p-2 shadow-[0_12px_32px_rgba(0,0,0,0.18)]"
+          className="absolute right-0 top-full z-20 mt-2 w-[190px] rounded-xl border border-[#E5E7EB] bg-[#FFFFFF] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.18)]"
         >
           <button
             type="button"
@@ -126,9 +126,9 @@ function WorkflowCardMenu({
               e.preventDefault();
               run(onOpen);
             }}
-            className="flex h-14 w-full items-center gap-2 rounded-[16px] px-5 text-left text-[18px] font-medium text-[#111827] hover:bg-[#F9FAFB]"
+            className="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-[#111827] hover:bg-[#F9FAFB]"
           >
-            <ExternalLink size={20} className="text-[#374151]" /> Open
+            <ExternalLink size={15} className="text-[#374151]" /> Open
           </button>
           <button
             type="button"
@@ -137,9 +137,9 @@ function WorkflowCardMenu({
               e.preventDefault();
               run(onRename);
             }}
-            className="flex h-14 w-full items-center gap-2 rounded-[16px] px-5 text-left text-[18px] font-medium text-[#111827] hover:bg-[#F9FAFB]"
+            className="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-[#111827] hover:bg-[#F9FAFB]"
           >
-            <Pencil size={20} className="text-[#374151]" /> Rename
+            <Pencil size={15} className="text-[#374151]" /> Rename
           </button>
           <button
             type="button"
@@ -148,9 +148,9 @@ function WorkflowCardMenu({
               e.preventDefault();
               run(onDuplicate);
             }}
-            className="flex h-14 w-full items-center gap-2 rounded-[16px] px-5 text-left text-[18px] font-medium text-[#111827] hover:bg-[#F9FAFB]"
+            className="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-[#111827] hover:bg-[#F9FAFB]"
           >
-            <Copy size={20} className="text-[#374151]" /> Duplicate
+            <Copy size={15} className="text-[#374151]" /> Duplicate
           </button>
           <button
             type="button"
@@ -159,9 +159,9 @@ function WorkflowCardMenu({
               e.preventDefault();
               run(onExport);
             }}
-            className="flex h-14 w-full items-center gap-2 rounded-[16px] px-5 text-left text-[18px] font-medium text-[#111827] hover:bg-[#F9FAFB]"
+            className="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-[#111827] hover:bg-[#F9FAFB]"
           >
-            <Download size={20} className="text-[#374151]" /> Export JSON
+            <Download size={15} className="text-[#374151]" /> Export JSON
           </button>
           <button
             type="button"
@@ -170,9 +170,9 @@ function WorkflowCardMenu({
               e.preventDefault();
               run(onDelete);
             }}
-            className="flex h-14 w-full items-center gap-2 rounded-[16px] px-5 text-left text-[18px] font-medium text-[#DC2626] hover:bg-[#FEF2F2]"
+            className="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-[#DC2626] hover:bg-[#FEF2F2]"
           >
-            <Trash2 size={20} className="text-[#DC2626]" /> Delete
+            <Trash2 size={15} className="text-[#DC2626]" /> Delete
           </button>
         </div>
       )}
