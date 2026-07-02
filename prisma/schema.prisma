@@ -1,3 +1,8 @@
+// Prisma schema for NextFlow.
+// Workflows and run history are scoped to the Clerk user id. Cascade deletes keep
+// referential integrity: removing a workflow removes its runs and their node
+// executions in a single transaction.
+
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
@@ -8,67 +13,108 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Workflow {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String   @default("Untitled Workflow")
-  description String?
-  nodes       Json     // ReactFlow nodes array
-  edges       Json     // ReactFlow edges array
-  viewport    Json?    // { x, y, zoom }
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  runs        WorkflowRun[]
-
-  @@index([userId])
-}
-
-model WorkflowRun {
-  id              String        @id @default(cuid())
-  workflowId      String
-  workflow        Workflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  userId          String
-  status          RunStatus     @default(RUNNING)
-  scope           RunScope      @default(FULL)
-  selectedNodeIds String[]      // For partial runs
-  startedAt       DateTime      @default(now())
-  completedAt     DateTime?
-  durationMs      Int?
-  nodeRuns        NodeRun[]
-
-  @@index([workflowId])
-  @@index([userId])
-}
-
-model NodeRun {
-  id            String       @id @default(cuid())
-  workflowRunId String
-  workflowRun   WorkflowRun  @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
-  nodeId        String
-  nodeType      String
-  nodeLabel     String
-  status        RunStatus    @default(RUNNING)
-  inputs        Json?
-  outputs       Json?
-  error         String?
-  startedAt     DateTime     @default(now())
-  completedAt   DateTime?
-  durationMs    Int?
-  triggerRunId  String?      // Trigger.dev run ID for tracking
-
-  @@index([workflowRunId])
-}
-
-enum RunStatus {
-  RUNNING
-  SUCCESS
-  FAILED
-  PARTIAL
-  PENDING
+enum WorkflowStatus {
+  idle
+  running
 }
 
 enum RunScope {
-  FULL
-  PARTIAL
-  SINGLE
+  full
+  partial
+  single
+}
+
+enum RunStatus {
+  running
+  success
+  failed
+  partial
+}
+
+enum NodeStatus {
+  pending
+  running
+  success
+  failed
+  skipped
+}
+
+model Workflow {
+  id        String         @id @default(cuid())
+  userId    String
+  name      String
+  // Persisted WorkflowGraph (nodes + edges). Validated by Zod before write.
+  graph     Json           @default("{\"nodes\":[],\"edges\":[],\"stickyNotes\":[]}")
+  // Dashboard card thumbnail — a CDN URL from the same upload pipeline as
+  // node-level image uploads (src/lib/uploadImage.ts). Null until set.
+  coverImageUrl String?
+  status    WorkflowStatus @default(idle)
+  // Optimistic-concurrency token for autosave, incremented only when `graph`,
+  // `name`, or `coverImageUrl` is written through PATCH /api/workflows/[id].
+  // Deliberately separate from `updatedAt`: run-status transitions
+  // (idle <-> running, see trigger/orchestrate.ts and api/workflows/[id]/runs)
+  // also touch this row and bump `updatedAt` via @updatedAt, which would
+  // otherwise invalidate a client's in-flight autosave token for a change
+  // that has nothing to do with the graph it's trying to save.
+  graphVersion Int         @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  runs WorkflowRun[]
+
+  @@index([userId])
+  @@index([userId, updatedAt])
+}
+
+model WorkflowRun {
+  id         String    @id @default(cuid())
+  workflowId String
+  userId     String
+  scope      RunScope
+  status     RunStatus @default(running)
+  durationMs Int?
+  // The exact graph snapshot this run executes against, captured at creation
+  // time — re-read at /start so triggering can happen in a second request,
+  // after the client's realtime subscription is already live.
+  graph      Json
+  // Trigger.dev orchestrator run id for realtime subscription.
+  triggerRunId String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  workflow       Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  nodeExecutions NodeExecution[]
+
+  @@index([workflowId, startedAt])
+  @@index([userId])
+}
+
+model NodeExecution {
+  id          String     @id @default(cuid())
+  runId       String
+  // The node's id within the workflow graph (not a DB foreign key).
+  nodeId      String
+  nodeKind    String
+  status      NodeStatus @default(pending)
+  inputs      Json       @default("{}")
+  output      Json?
+  errorMessage String?
+  durationMs  Int?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  run WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}
+
+// Backs a usage display of runs started per user per day.
+model DailyUsageCounter {
+  id     String @id @default(cuid())
+  userId String
+  date   String
+  count  Int    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
 }

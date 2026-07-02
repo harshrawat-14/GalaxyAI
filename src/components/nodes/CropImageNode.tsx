@@ -1,189 +1,168 @@
-'use client'
+"use client";
 
-import { memo, useCallback } from 'react'
-import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { Crop } from 'lucide-react'
-import { BaseNode } from './BaseNode'
-import { useWorkflowStore } from '@/store/workflow-store'
-import type { CropImageNodeData } from '@/types/nodes'
-import { cn } from '@/lib/utils'
+import type { NodeProps } from "@xyflow/react";
+import { Info, Plus, Upload, X } from "lucide-react";
+import { useState } from "react";
+import { SliderParam, OutputBox } from "@/components/canvas/controls";
+import { getNodeSpec, type CropImageConfig } from "@/domain/nodes";
+import { ACCEPTED_IMAGE_TYPES } from "@/lib/constants";
+import { estimateNodeTokens, formatM } from "@/lib/estimates";
+import { UnsupportedImageTypeError, uploadImage } from "@/lib/uploadImage";
+import { useWorkflowStore, type NextFlowNode } from "@/store/workflow-store";
+import { NodeShell, PortRow } from "./NodeShell";
 
-const INPUT_HANDLE = {
-  width: 14,
-  height: 14,
-  border: '2px solid #1e293b',
-  background: '#64748b',
-}
+const ACCEPT_ATTR = ACCEPTED_IMAGE_TYPES.map((ext) => `.${ext}`).join(",");
 
-const OUTPUT_HANDLE = {
-  width: 14,
-  height: 14,
-  border: '2px solid #1e293b',
-  background: '#f59e0b',
-}
+const PERCENT_FIELDS: { key: "x" | "y" | "width" | "height"; label: string }[] = [
+  { key: "x", label: "X Position (%)" },
+  { key: "y", label: "Y Position (%)" },
+  { key: "width", label: "Width (%)" },
+  { key: "height", label: "Height (%)" },
+];
 
-export const CropImageNode = memo(function CropImageNode({
-  id,
-  data,
-  selected,
-}: NodeProps) {
-  const nodeData = data as CropImageNodeData
-  const updateNodeData = useWorkflowStore((s) => s.updateNodeData)
+const DEFAULTS: Record<"x" | "y" | "width" | "height", number> = { x: 0, y: 0, width: 100, height: 100 };
 
-  const update = useCallback(
-    <K extends keyof CropImageNodeData>(key: K, value: CropImageNodeData[K]) => {
-      updateNodeData<CropImageNodeData>(id, { [key]: value } as Partial<CropImageNodeData>)
-    },
-    [id, updateNodeData],
-  )
+export function CropImageNode({ id, data, selected }: NodeProps<NextFlowNode>) {
+  const updateNodeConfig = useWorkflowStore((s) => s.updateNodeConfig);
+  const edges = useWorkflowStore((s) => s.edges);
+  const addRequestInputsFieldAndConnect = useWorkflowStore((s) => s.addRequestInputsFieldAndConnect);
+  const config = data.config as CropImageConfig;
+  const spec = getNodeSpec("crop-image");
+  const inputImagePort = spec.inputs(config)[0];
+  const outputImagePort = spec.outputs(config)[0];
+  const isConnected = edges.some((e) => e.target === id && e.targetHandle === "input_image");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const isInputConnected = (handle: string) =>
-    nodeData.connectedInputs[handle] === true
+  // Realtime output is keyed by output port id (e.g. "output_image"), not a fixed "url" field.
+  const output = data.output as Record<string, unknown> | undefined;
+  const outputUrl = outputImagePort ? (output?.[outputImagePort.id] as string | undefined) : undefined;
+
+  async function handleUpload(file: File) {
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const url = await uploadImage(file);
+      updateNodeConfig(id, { imageUrl: url });
+    } catch (error) {
+      setUploadError(error instanceof UnsupportedImageTypeError ? error.message : "Upload failed — please try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
-    <BaseNode
+    <NodeShell
       id={id}
-      isRunning={nodeData.isRunning}
-      isSelected={selected}
-      title={nodeData.label}
-      icon={<Crop size={12} />}
-      headerColor="#22c55e"
-      minWidth={300}
+      kind="crop-image"
+      label="Crop Image"
+      status={data.status}
+      selected={selected}
+      executable={spec.executable}
+      deletable={spec.deletable}
+      description={spec.description}
+      locked={data.locked}
+      width="w-[340px]"
     >
-      {/* Input: image_url */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="image_url"
-        title="Image Source (image)"
-        style={{ ...INPUT_HANDLE, top: 72 }}
-      />
-
-      {/* Input: x_percent */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="x_percent"
-        title="X Offset % (text or number)"
-        style={{ ...INPUT_HANDLE, top: 120 }}
-      />
-
-      {/* Input: y_percent */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="y_percent"
-        title="Y Offset % (text or number)"
-        style={{ ...INPUT_HANDLE, top: 160 }}
-      />
-
-      {/* Input: width_percent */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="width_percent"
-        title="Width % (text or number)"
-        style={{ ...INPUT_HANDLE, top: 200 }}
-      />
-
-      {/* Input: height_percent */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="height_percent"
-        title="Height % (text or number)"
-        style={{ ...INPUT_HANDLE, top: 240 }}
-      />
-
-      {/* Image URL input — greyed out when connected */}
-      <div className="space-y-1">
-        <label className="text-[10px] text-textmuted uppercase tracking-wider flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-warning" />
-          Image Source
-          {isInputConnected('image_url') && (
-            <span className="text-accent text-[9px]">← connected</span>
-          )}
-        </label>
-        {!isInputConnected('image_url') && (
-          <input
-            value={nodeData.imageUrl ?? ''}
-            onChange={(e) => update('imageUrl', e.target.value || null)}
-            placeholder="Paste image URL..."
-            disabled={nodeData.isRunning}
-            className={cn(
-              'w-full bg-surface border border-border rounded-lg px-2.5 py-1.5',
-              'text-xs text-text placeholder:text-textsub',
-              'focus:outline-none focus:border-accent transition-colors nodrag nowheel',
-            )}
-          />
-        )}
-      </div>
-
-      {/* Crop parameters */}
-      <div className="grid grid-cols-2 gap-2">
-        {(['xPercent', 'yPercent', 'widthPercent', 'heightPercent'] as const).map(
-          (param) => {
-            const handleId = param.replace(/[A-Z]/g, (m) => '_' + m.toLowerCase())
-            const connected = isInputConnected(handleId)
-            return (
-              <div key={param} className="space-y-0.5">
-                <label className="text-[9px] text-textsub uppercase tracking-wider">
-                  {param.replace(/Percent/, ' %')}
-                  {connected && (
-                    <span className="text-accent ml-1">←</span>
-                  )}
+      {inputImagePort && (
+        <div>
+          <PortRow
+            port={inputImagePort}
+            direction="input"
+            connected={isConnected}
+            rightExtra={
+              config.imageUrl ? (
+                <div className="relative h-6 w-6">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN thumbnail, not worth next/image config here */}
+                  <img src={config.imageUrl} alt="" data-testid="crop-input-image-preview" className="h-6 w-6 rounded object-cover" />
+                  <button
+                    type="button"
+                    aria-label="Remove image"
+                    data-testid="crop-input-image-clear"
+                    onClick={() => updateNodeConfig(id, { imageUrl: null })}
+                    className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-zinc-700 text-white hover:bg-zinc-900"
+                  >
+                    <X size={8} />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-dashed border-card-border px-2 py-1 text-xs text-text-muted hover:bg-control-hover">
+                  <Upload size={12} />
+                  {uploading ? "Uploading…" : "Upload Image"}
+                  <input
+                    type="file"
+                    accept={ACCEPT_ATTR}
+                    data-testid="crop-input-image-input"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) handleUpload(file);
+                    }}
+                  />
                 </label>
-                <input
-                  type="number"
-                  value={nodeData[param]}
-                  onChange={(e) =>
-                    update(param, parseFloat(e.target.value) || 0)
-                  }
-                  disabled={nodeData.isRunning || connected}
-                  min={0}
-                  max={100}
-                  className={cn(
-                    'w-full bg-surface border border-border rounded-md px-2 py-1',
-                    'text-[11px] text-text font-mono',
-                    'focus:outline-none focus:border-accent transition-colors nodrag nowheel',
-                    connected && 'opacity-40 cursor-not-allowed',
-                  )}
-                />
-              </div>
-            )
-          },
-        )}
+              )
+            }
+            addButton={
+              !isConnected ? (
+                <button
+                  type="button"
+                  aria-label="Add an image field on Request-Inputs and connect it here"
+                  data-testid="crop-input-image-quick-add"
+                  onClick={() => addRequestInputsFieldAndConnect(id, "input_image", "image_field")}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-card-border text-text-muted hover:bg-control-hover"
+                >
+                  <Plus size={14} />
+                </button>
+              ) : undefined
+            }
+          />
+          <p
+            className={`pl-3 mt-1 flex items-center gap-1 text-[11px] text-label-muted ${
+              isConnected ? "pointer-events-none opacity-50" : ""
+            }`}
+          >
+            <Info size={10} /> Upload requirements
+          </p>
+          {uploadError && <p className="pl-3 text-xs text-red-500">{uploadError}</p>}
+        </div>
+      )}
+
+      {PERCENT_FIELDS.map(({ key, label }) => {
+        const percentConnected = edges.some((e) => e.target === id && e.targetHandle === key);
+        return (
+          <SliderParam
+            key={key}
+            label={label}
+            portId={key}
+            connected={percentConnected}
+            value={config[key]}
+            min={0}
+            max={100}
+            step={1}
+            onChange={(value) => updateNodeConfig(id, { [key]: value })}
+            onReset={() => updateNodeConfig(id, { [key]: DEFAULTS[key] })}
+            onAdd={() => addRequestInputsFieldAndConnect(id, key, "number_field")}
+          />
+        );
+      })}
+
+      <div className="space-y-1">
+        <span className="text-[13px] text-text-strong">Output Image</span>
+        <OutputBox testId="crop-output-image">
+          {outputUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN thumbnail, not worth next/image config here
+            <img src={outputUrl} alt="" className="mx-auto h-16 rounded object-contain" />
+          ) : undefined}
+        </OutputBox>
+        {outputImagePort && <PortRow port={outputImagePort} direction="output" />}
       </div>
 
-      {/* Result display */}
-      {nodeData.resultUrl && (
-        <div className="mt-2 space-y-1">
-          <p className="text-[10px] text-textmuted uppercase tracking-wider">
-            Cropped Result
-          </p>
-          <img
-            src={nodeData.resultUrl}
-            alt="Cropped result"
-            className="w-full h-24 object-cover rounded-lg border border-border"
-          />
-        </div>
-      )}
-
-      {/* Error display */}
-      {nodeData.error && (
-        <div className="mt-2 p-2 bg-error/10 border border-error/30 rounded-lg">
-          <p className="text-xs text-error">{nodeData.error}</p>
-        </div>
-      )}
-
-      {/* Output handle */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="output"
-        title="Cropped Image Output"
-        style={OUTPUT_HANDLE}
-      />
-    </BaseNode>
-  )
-})
+      <div className="flex items-center justify-end gap-1 pt-1 text-[11px] text-label-muted">
+        {formatM(estimateNodeTokens({ kind: "crop-image", config }))}
+        <Info size={10} />
+      </div>
+    </NodeShell>
+  );
+}

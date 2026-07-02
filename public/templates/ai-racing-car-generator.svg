@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="336" viewBox="0 0 600 336">
+  <rect width="600" height="336" fill="#F4F4F5"/>
+  <defs>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="11" cy="11" r="1.5" fill="#CACACA"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="336" fill="url(#dots)"/>
+  <g transform="translate(300,168)" text-anchor="middle" font-family="sans-serif">
+    <circle r="36" fill="#A88BFA" opacity="0.15"/>
+    <text y="8" font-size="28" fill="#71717A">🏎️</text>
+    <text y="56" font-size="14" fill="#71717A">Template preview placeholder</text>
+  </g>
+</svg>

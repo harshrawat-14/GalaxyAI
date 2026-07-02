@@ -4,9 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "trigger:dev": "npx trigger.dev@4.4.6 dev",
+    "test": "vitest run"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.2.7",
@@ -20,7 +26,8 @@
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@trigger.dev/sdk": "^4.4.4",
+    "@trigger.dev/sdk": "4.4.6",
+    "@trigger.dev/react-hooks": "4.4.6",
     "@uppy/core": "^5.2.0",
     "@uppy/dashboard": "^5.1.1",
     "@uppy/react": "^5.2.0",
@@ -46,16 +53,19 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@trigger.dev/build": "4.4.6",
     "@types/fluent-ffmpeg": "^2.1.28",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "postcss": "^8.4.0",
     "prisma": "^5.22.0",
-    "tailwindcss": "^4",
+    "tailwindcss": "^3.4.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.0"
   }
 }

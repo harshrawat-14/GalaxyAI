@@ -1,4 +1,6 @@
 import { defineConfig } from '@trigger.dev/sdk/v3'
+import { ffmpeg } from '@trigger.dev/build/extensions/core'
+import { prismaExtension } from '@trigger.dev/build/extensions/prisma'
 
 export default defineConfig({
   // Replace with your Trigger.dev project ref (proj_xxxxxxxxxxxxxxxx).
@@ -8,23 +10,21 @@ export default defineConfig({
   runtime: 'node',
   logLevel: 'log',
 
-  // Allow long FFmpeg / LLM jobs (seconds).
+  // Allow long FFmpeg / LLM jobs (seconds). Crop Image alone has a mandatory 30s+ wait.
   maxDuration: 300,
 
   retries: {
-    enabledInDev: false,
-    default: {
-      maxAttempts: 2,
-      minTimeoutInMs: 1000,
-      maxTimeoutInMs: 10_000,
-      factor: 2,
-      randomize: true,
-    },
+    enabledInDev: true,
   },
 
   dirs: ['./src/trigger'],
 
+  // Crop Image runs FFmpeg via the CLI inside the task, so the build image
+  // must include the ffmpeg/ffprobe binaries. Prisma's query-engine binary is
+  // platform-specific (local dev generates darwin-arm64; the deploy image is
+  // Debian) — this extension regenerates the client for the deploy target
+  // during the remote build instead of shipping the wrong-platform one.
   build: {
-    external: ['ffmpeg-static', 'sharp'],
+    extensions: [ffmpeg(), prismaExtension({ mode: 'legacy', schema: 'prisma/schema.prisma' })],
   },
 })
