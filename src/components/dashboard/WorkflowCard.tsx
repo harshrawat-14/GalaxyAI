@@ -315,23 +315,24 @@ export function WorkflowCard({
           data-testid="workflow-open-link"
           className="block overflow-hidden rounded-t-card"
         >
-          {workflow.coverImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN cover image, not worth next/image config here
-            <img src={workflow.coverImageUrl} alt="" data-testid="workflow-cover-image" className="h-28 w-full object-cover" />
-          ) : (
-            <div
-              className="h-28 w-full bg-canvas-bg"
-              style={{ backgroundImage: "radial-gradient(#CACACA 1.5px, transparent 1.5px)", backgroundSize: "22px 22px" }}
-            >
+          {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN cover image (or the bundled default), not worth next/image config here */}
+          <img
+            src={workflow.coverImageUrl ?? "/default-workflow-cover.png"}
+            alt=""
+            data-testid="workflow-cover-image"
+            className="h-28 w-full object-cover"
+          />
+          {!workflow.coverImageUrl && (
+            <>
               <div className="absolute bottom-2 left-2 flex gap-1">
                 {workflow.nodeKinds.map((kind) => (
-                  <span key={kind} className={`h-2.5 w-2.5 rounded-full ${KIND_DOT[kind]}`} />
+                  <span key={kind} className={`h-2.5 w-2.5 rounded-full ${KIND_DOT[kind]} ring-1 ring-white/70`} />
                 ))}
               </div>
-              <span className="absolute bottom-2 right-2 rounded bg-card-bg/80 px-1.5 py-0.5 text-xs text-label-muted">
+              <span className="absolute bottom-2 right-2 rounded bg-black/50 px-1.5 py-0.5 text-xs text-white">
                 {workflow.nodeCount} {workflow.nodeCount === 1 ? "node" : "nodes"}
               </span>
-            </div>
+            </>
           )}
         </Link>
 
