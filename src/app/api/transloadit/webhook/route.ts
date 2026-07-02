@@ -1,5 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { wait } from "@trigger.dev/sdk";
+// Side-effect import: configures the Trigger.dev SDK client from our
+// TRIGGER_API_KEY env var (the SDK only auto-detects TRIGGER_SECRET_KEY) —
+// must come before wait.completeToken() below. Same fix as the other two
+// route files that call the SDK — missing it here caused every webhook to
+// fail with ApiClientMissingError even after signature verification passed.
+import "@/lib/trigger-client";
 import { firstResultUrl, verifyWebhookSignature, type TransloaditWebhookResult } from "@/lib/transloadit";
 
 /**
