@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!verifyWebhookSignature(rawTransloaditField, signature)) {
+    console.error("[transloadit webhook] signature verification failed — rejecting notification");
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 

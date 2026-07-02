@@ -80,12 +80,22 @@ export async function startTransloaditUpload(buffer: Buffer, filename: string, n
 }
 
 /**
- * Verifies Transloadit's webhook signature (same HMAC-SHA384-over-JSON,
- * `sha384:<hex>` scheme as `signParams`, just signing the raw `transloadit`
- * field instead of `params`) before `/api/transloadit/webhook` trusts the
- * payload enough to complete a wait token with it.
+ * Verifies Transloadit's webhook notification signature.
+ *
+ * This is NOT the same scheme as `signParams`/`buildUploadParams` above.
+ * Those use Signature Auth (HMAC-SHA384, hex, prefixed "sha384:") to
+ * authenticate an outgoing request *to* Transloadit's API. The webhook
+ * notification Transloadit itself sends back to `notify_url` is signed with
+ * their separate, legacy scheme: plain HMAC-SHA1 over the raw `transloadit`
+ * field, hex-encoded, with no algorithm prefix — confirmed by inspecting a
+ * real webhook payload in production (received signature was exactly 40 hex
+ * chars, i.e. SHA-1 length, not the 103-char "sha384:<hex>" we were
+ * comparing against, so every real webhook failed verification with a 401).
  */
+export function computeExpectedSignature(rawTransloaditField: string): string {
+  return createHmac("sha1", serverEnv().TRANSLOADIT_AUTH_SECRET).update(rawTransloaditField).digest("hex");
+}
+
 export function verifyWebhookSignature(rawTransloaditField: string, signature: string): boolean {
-  const expected = `sha384:${createHmac("sha384", serverEnv().TRANSLOADIT_AUTH_SECRET).update(rawTransloaditField).digest("hex")}`;
-  return expected === signature;
+  return computeExpectedSignature(rawTransloaditField) === signature;
 }
