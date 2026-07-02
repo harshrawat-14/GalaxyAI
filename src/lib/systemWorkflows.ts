@@ -17,7 +17,7 @@ export const SYSTEM_WORKFLOWS: SystemWorkflowTemplate[] = [
     id: "ai-racing-car-generator",
     name: "AI Racing Car Generator",
     buildGraph: createRacingCarGraph,
-    coverImageUrl: "/templates/ai-racing-car-generator.svg",
+    coverImageUrl: "/default-workflow-cover.png",
   },
 ];
 
