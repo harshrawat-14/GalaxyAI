@@ -1,4 +1,5 @@
 import type { WorkflowGraph } from "@/domain/types";
+import { buildSampleGraph, SAMPLE_WORKFLOW_NAME } from "@/lib/sampleWorkflow";
 import { createRacingCarGraph } from "@/lib/seed";
 
 export interface SystemWorkflowTemplate {
@@ -13,6 +14,15 @@ export interface SystemWorkflowTemplate {
 
 /** System-workflow templates (docs/prompts/flow-homepage.md Task 2). Append more entries here later — no redesign needed. */
 export const SYSTEM_WORKFLOWS: SystemWorkflowTemplate[] = [
+  {
+    // The required assignment sample: the parallel fan-out marketing pipeline
+    // (Request-Inputs -> 2 Crops + 3 Gemini -> Response). Preview & clone it
+    // from the dashboard.
+    id: "parallel-fan-out-demo",
+    name: SAMPLE_WORKFLOW_NAME,
+    buildGraph: buildSampleGraph,
+    coverImageUrl: "/default-workflow-cover.png",
+  },
   {
     id: "ai-racing-car-generator",
     name: "AI Racing Car Generator",
