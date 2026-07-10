@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { DeserializedJson } from "@trigger.dev/core";
-import { logger, metadata, task } from "@trigger.dev/sdk";
+import { logger, metadata, runs, task } from "@trigger.dev/sdk";
 import { directParents } from "@/domain/dag";
 import { getNodeSpec, type RequestInputsConfig } from "@/domain/nodes";
 import type { GraphNode, RunStatus, WorkflowGraph } from "@/domain/types";
@@ -41,27 +41,20 @@ export interface OrchestratePayload {
   nodeExecutionIdByNodeId: Record<string, string>;
 }
 
-/** Best-effort message out of a TaskRunResult's `error` (typed `unknown` — Trigger.dev
- * serializes failures as a discriminated union, not a native Error, across the wire). */
-function taskErrorMessage(error: unknown): string {
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-  return String(error);
-}
-
 /**
  * Promise-graph run task: each node awaits only its direct (in-scope)
  * parents, memoized so a node starts the instant its own dependencies
  * finish — never blocking on unrelated siblings (LLD §6, AGENT.md §2.3).
  *
- * Executable nodes are run via `task.triggerAndWait()` — Trigger.dev's native
- * checkpoint/restore wait primitive, not a manual poll loop. v3 rejected
- * concurrent `triggerAndWait` calls ("Parallel waits are not supported"),
- * which is why this used to be `task.trigger()` + `runs.poll()`; v4's CRIU-
- * based checkpointing lifts that restriction, so the orchestrator's own
- * concurrent `Promise.all(parents.map(resultFor))` fan-out can wait on
- * multiple child tasks at once without polling.
+ * Executable nodes are run via `task.trigger()` + `runs.poll()`, NOT
+ * `triggerAndWait()`. The orchestrator's whole point is concurrency — it awaits
+ * several children at once via `Promise.all(parents.map(resultFor))` — and
+ * Trigger.dev forbids concurrent blocking waits ("Parallel waits are not
+ * supported, e.g. using Promise.all() around our wait functions"). With
+ * triggerAndWait, only the first concurrent wait wins and the rest throw
+ * immediately (their child tasks still run, so the DB shows them "success"
+ * while every downstream node is skipped — confirmed live in prod). Polling is
+ * plain HTTP with no such restriction, so multiple in-flight polls are fine.
  */
 export const orchestrate = task({
   id: "run.orchestrate",
@@ -160,9 +153,12 @@ export const orchestrate = task({
           const handler = TASK_BY_KIND[node.kind];
 
           logger.info("[orchestrate] dispatching to Trigger.dev task", { runId, nodeId: id, kind: node.kind });
-          const completed = await handler.triggerAndWait(taskPayload as never);
-          if (!completed.ok) {
-            const message = taskErrorMessage(completed.error);
+          // trigger() (fire, don't block) then poll — see the task-level doc
+          // comment on why this must not be triggerAndWait().
+          const handle = await handler.trigger(taskPayload as never);
+          const completed = await runs.poll(handle.id, { pollIntervalMs: 1500 });
+          if (completed.status !== "COMPLETED") {
+            const message = completed.error?.message ?? `task ended ${completed.status}`;
             logger.error("[orchestrate] node task failed", { runId, nodeId: id, kind: node.kind, message });
             throw new Error(`${node.kind} task failed: ${message}`);
           }
