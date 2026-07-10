@@ -57,6 +57,48 @@ describe("updateNodeConfig", () => {
   });
 });
 
+describe("reorderRequestInputsFields", () => {
+  beforeEach(resetStore);
+
+  function seedFields() {
+    useWorkflowStore.getState().updateNodeConfig("n1", {
+      fields: [
+        { id: "a", name: "a", type: "text_field", value: "va" },
+        { id: "b", name: "b", type: "text_field", value: "vb" },
+        { id: "c", name: "c", type: "text_field", value: "vc" },
+      ],
+    });
+  }
+
+  function fieldIds() {
+    const node = useWorkflowStore.getState().nodes.find((n) => n.id === "n1")!;
+    return (node.data.config as { fields: { id: string }[] }).fields.map((f) => f.id);
+  }
+
+  it("reorders fields to the given id order, preserving each field's value", () => {
+    seedFields();
+    useWorkflowStore.getState().reorderRequestInputsFields("n1", ["c", "a", "b"]);
+
+    expect(fieldIds()).toEqual(["c", "a", "b"]);
+    const node = useWorkflowStore.getState().nodes.find((n) => n.id === "n1")!;
+    const moved = (node.data.config as { fields: { id: string; value: string }[] }).fields[0];
+    expect(moved.value).toBe("vc"); // object preserved by id, not reconstructed
+  });
+
+  it("appends any field missing from the id list (never drops a field)", () => {
+    seedFields();
+    useWorkflowStore.getState().reorderRequestInputsFields("n1", ["b"]);
+    expect(fieldIds()).toEqual(["b", "a", "c"]);
+  });
+
+  it("is a single undoable step", () => {
+    seedFields();
+    useWorkflowStore.getState().reorderRequestInputsFields("n1", ["c", "b", "a"]);
+    useWorkflowStore.getState().undo();
+    expect(fieldIds()).toEqual(["a", "b", "c"]);
+  });
+});
+
 describe("setNodes", () => {
   beforeEach(resetStore);
 
