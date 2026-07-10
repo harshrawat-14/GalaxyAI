@@ -1,7 +1,6 @@
 "use client";
 
 import { type NodeProps, useUpdateNodeInternals } from "@xyflow/react";
-import { Reorder, useDragControls } from "framer-motion";
 import { AlignLeft, Check, Copy, GripVertical, Hash, Image as ImageIcon, Info, Maximize2, Plus, SquareCheck, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { getNodeSpec, type RequestField, type RequestInputsConfig } from "@/domain/nodes";
@@ -207,52 +206,66 @@ function TextFieldTextarea({ value, onChange }: { value: string; onChange: (valu
 }
 
 /**
- * One reorderable Request-Inputs field. Wrapped in a Reorder.Item whose drag is
- * driven *only* by the 6-dot grip handle (dragListener={false} + dragControls) —
- * so clicking anywhere else in the row (name, value, buttons) never starts a
- * drag. The surrounding NodeShell content already carries `nodrag`, so the grip
- * drag doesn't fight React Flow's node panning.
+ * One reorderable Request-Inputs field. Reordering uses native HTML5
+ * drag-and-drop (only the 6-dot grip is `draggable`; the row is the drop
+ * target) rather than a transform-based library — the output port Handle lives
+ * in this row, and React Flow measures handle positions from the static DOM, so
+ * any residual CSS transform (as a layout-animation lib leaves) would detach the
+ * connected edges from the dots. NodeShell's content already has `nodrag`, so
+ * the drag never triggers React Flow's node panning.
  */
 function RequestInputField({
   field,
   autoFocus,
   uploading,
+  dragging,
   onRename,
   onRemove,
   onSetValue,
   onUpload,
+  onDragStart,
+  onDragOverField,
   onDragEnd,
 }: {
   field: RequestField;
   autoFocus: boolean;
   uploading: boolean;
+  dragging: boolean;
   onRename: (name: string) => void;
   onRemove: () => void;
   onSetValue: (value: string | null) => void;
   onUpload: (file: File) => void;
+  onDragStart: () => void;
+  onDragOverField: () => void;
   onDragEnd: () => void;
 }) {
-  const controls = useDragControls();
-
   return (
-    <Reorder.Item
-      value={field}
-      as="div"
-      dragListener={false}
-      dragControls={controls}
-      onDragEnd={onDragEnd}
+    <div
+      onDragOver={(e) => {
+        // Only react while a sibling field is being dragged (not, say, a file
+        // dragged onto the image input) — preventDefault marks a valid drop.
+        if (!dragging) return;
+        e.preventDefault();
+        onDragOverField();
+      }}
+      onDrop={(e) => e.preventDefault()}
       className="space-y-1 bg-card-bg"
     >
       <div className="flex items-center gap-1.5">
-        <button
-          type="button"
+        <span
+          draggable
           aria-label={`Reorder ${field.name}`}
           data-testid="request-inputs-field-drag-handle"
-          onPointerDown={(e) => controls.start(e)}
-          className="shrink-0 cursor-grab touch-none text-label-muted hover:text-text-muted active:cursor-grabbing"
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", field.id);
+            onDragStart();
+          }}
+          onDragEnd={onDragEnd}
+          className="shrink-0 cursor-grab text-label-muted hover:text-text-muted active:cursor-grabbing"
         >
           <GripVertical size={14} />
-        </button>
+        </span>
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <FieldNameLabel name={field.name} autoFocus={autoFocus} onRename={onRename} />
           <FieldInfoButton text={FIELD_TYPE_INFO[field.type]} />
@@ -331,7 +344,7 @@ function RequestInputField({
           )}
         </div>
       )}
-    </Reorder.Item>
+    </div>
   );
 }
 
@@ -346,12 +359,12 @@ export function RequestInputsNode({ id, data, selected }: NodeProps<NextFlowNode
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [lastAddedFieldId, setLastAddedFieldId] = useState<string | null>(null);
 
-  // `dragOrder` is a transient overlay live only while a row is being dragged:
-  // onReorder writes it (no store write, so the undo stack isn't flooded per
-  // drag frame), and on drop it's committed to the store once and cleared. When
-  // null we render straight from the persisted `config.fields`, so there's no
-  // derived-state to keep in sync.
+  // `dragOrder` is a transient overlay live only while a row is being dragged
+  // (updated on dragover, no store write so the undo stack isn't flooded), and
+  // on drop it's committed once and cleared. When null we render straight from
+  // the persisted `config.fields`, so there's no derived-state to keep in sync.
   const [dragOrder, setDragOrder] = useState<RequestField[] | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const order = dragOrder ?? config.fields;
   const latestOrderRef = useRef(order);
 
@@ -364,9 +377,26 @@ export function RequestInputsNode({ id, data, selected }: NodeProps<NextFlowNode
     updateNodeInternals(id);
   }, [order, id, updateNodeInternals]);
 
+  // Move the dragged field to the hovered field's slot, computed against the
+  // live overlay (or the persisted order on the first move).
+  function reorderOnHover(overId: string) {
+    if (!draggingId || draggingId === overId) return;
+    setDragOrder((prev) => {
+      const base = prev ?? config.fields;
+      const from = base.findIndex((f) => f.id === draggingId);
+      const to = base.findIndex((f) => f.id === overId);
+      if (from === -1 || to === -1 || from === to) return base;
+      const next = [...base];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved!);
+      return next;
+    });
+  }
+
   function commitOrder() {
     reorderRequestInputsFields(id, latestOrderRef.current.map((f) => f.id));
     setDragOrder(null);
+    setDraggingId(null);
   }
 
   // Each updater reads the *latest* config at apply time (not this render's
@@ -433,21 +463,24 @@ export function RequestInputsNode({ id, data, selected }: NodeProps<NextFlowNode
       headerLeftExtra={<NodeInfoButton description={spec.description} />}
       headerRight={<AddFieldMenu onAdd={addField} />}
     >
-      <Reorder.Group axis="y" values={order} onReorder={setDragOrder} as="div" className="space-y-2">
+      <div className="space-y-2">
         {order.map((field) => (
           <RequestInputField
             key={field.id}
             field={field}
             autoFocus={field.id === lastAddedFieldId}
             uploading={uploading === field.id}
+            dragging={draggingId !== null}
             onRename={(name) => renameField(field.id, name)}
             onRemove={() => removeField(field.id)}
             onSetValue={(value) => setFieldValue(field.id, value)}
             onUpload={(file) => handleImageUpload(field.id, file)}
+            onDragStart={() => setDraggingId(field.id)}
+            onDragOverField={() => reorderOnHover(field.id)}
             onDragEnd={commitOrder}
           />
         ))}
-      </Reorder.Group>
+      </div>
 
       {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
     </NodeShell>
