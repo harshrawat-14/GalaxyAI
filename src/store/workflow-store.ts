@@ -101,6 +101,8 @@ interface WorkflowStoreState {
   addRequestInputsFieldAndConnect: (targetNodeId: string, targetHandle: string, fieldType: RequestField["type"]) => void;
   /** Removes a Request-Inputs field AND any edges sourced from it, atomically — otherwise the dangling edge keeps every wired param's `connected` state stuck `true`. */
   removeRequestInputsField: (nodeId: string, fieldId: string) => void;
+  /** Reorders a Request-Inputs node's fields to match `orderedFieldIds` (drag-to-reorder handle). One undo entry per drop. */
+  reorderRequestInputsFields: (nodeId: string, orderedFieldIds: string[]) => void;
   setSelection: (ids: string[]) => void;
   undo: () => void;
   redo: () => void;
@@ -517,6 +519,28 @@ export const useWorkflowStore = create<WorkflowStoreState>((set, get) => ({
         future: [],
         nodes: nextNodes,
         edges: nextEdges,
+        dirty: true,
+      };
+    });
+  },
+
+  reorderRequestInputsFields: (nodeId, orderedFieldIds) => {
+    set((state) => {
+      const nextNodes = state.nodes.map((n) => {
+        if (n.id !== nodeId || isStickyNoteNode(n)) return n;
+        const config = n.data.config as RequestInputsConfig;
+        const byId = new Map(config.fields.map((f) => [f.id, f]));
+        // Reorder by id, preserving each field's current object (values/name),
+        // then append any field not named in the order as a safety net so a
+        // stale id list can never drop a field.
+        const reordered = orderedFieldIds.map((id) => byId.get(id)).filter((f): f is RequestField => Boolean(f));
+        for (const f of config.fields) if (!orderedFieldIds.includes(f.id)) reordered.push(f);
+        return { ...n, data: { ...n.data, config: { ...config, fields: reordered } } };
+      });
+      return {
+        past: [...state.past, snapshotOf(state)],
+        future: [],
+        nodes: nextNodes,
         dirty: true,
       };
     });
