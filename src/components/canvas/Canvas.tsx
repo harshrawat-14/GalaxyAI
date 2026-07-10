@@ -134,6 +134,11 @@ export function Canvas() {
           panOnDrag={panMode}
           selectionOnDrag={!panMode}
           fitView
+          // Cap the INITIAL fit at 100% so a small graph opens at 1:1 (not
+          // zoomed in to the 200% max), then the user can zoom freely. Without
+          // this, fitView zooms in to maxZoom for graphs smaller than the
+          // viewport.
+          fitViewOptions={{ maxZoom: 1 }}
           // React Flow defaults to minZoom 0.5, so the "won't zoom past 50%"
           // wall is the default, not a bug — widen it so large fan-out graphs
           // (e.g. the sample workflow) fit fully on screen.
