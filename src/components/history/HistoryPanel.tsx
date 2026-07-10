@@ -20,6 +20,46 @@ interface NodeExecutionDetail {
   status: NodeStatus;
   errorMessage: string | null;
   durationMs: number | null;
+  inputs: Record<string, unknown> | null;
+  output: unknown;
+}
+
+/** "820ms" / "3.4s" — compact, matching the run-level pill. */
+function formatDuration(ms: number | null): string {
+  if (ms == null) return "—";
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** Renders a node input/output value compactly: strings verbatim, everything else as JSON. */
+function formatValue(value: unknown): string {
+  if (value == null) return "—";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(formatValue).join(", ");
+  return JSON.stringify(value);
+}
+
+/** Node output is a JSON blob (e.g. { text } for Gemini, { output_image } for Crop) — normalize to a record for DetailFields. */
+function toRecord(output: unknown): Record<string, unknown> | null {
+  if (output == null) return null;
+  if (typeof output === "object" && !Array.isArray(output)) return output as Record<string, unknown>;
+  return { result: output };
+}
+
+/** Labelled key/value list for a node's inputs/output map (LLD §7 details view). */
+function DetailFields({ label, data }: { label: string; data: Record<string, unknown> | null }) {
+  const entries = data ? Object.entries(data).filter(([, v]) => v != null && v !== "") : [];
+  if (entries.length === 0) return null;
+  return (
+    <div className="space-y-0.5">
+      <span className="text-[10px] font-medium uppercase tracking-wide text-label-muted">{label}</span>
+      {entries.map(([key, value]) => (
+        <div key={key} className="flex gap-1.5 text-[11px]">
+          <span className="shrink-0 text-label-muted">{key}:</span>
+          <span className="min-w-0 break-words text-text-muted">{formatValue(value)}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 interface RunDetail extends RunSummary {
@@ -127,18 +167,25 @@ export function HistoryPanel({
             >
               <span className={`rounded px-1.5 py-0.5 font-medium ${RUN_BADGE[run.status]}`}>{run.status}</span>
               <span className="text-label-muted">{run.scope}</span>
+              <span className="ml-auto text-label-muted">{formatDuration(run.durationMs)}</span>
               <span className="text-label-muted">{new Date(run.startedAt).toLocaleTimeString()}</span>
             </button>
             {expanded?.id === run.id && (
-              <div className="space-y-1 border-t border-divider px-3 py-2">
+              <div className="space-y-2 border-t border-divider px-3 py-2">
                 {expanded.nodeExecutions.map((ne) => (
-                  <div key={ne.id} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="truncate text-label-muted">{ne.nodeKind}</span>
-                    <span className={`shrink-0 rounded px-1.5 py-0.5 ${NODE_BADGE[ne.status]}`}>{ne.status}</span>
+                  <div key={ne.id} className="space-y-1 rounded border border-card-border bg-canvas-bg px-2 py-1.5">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="truncate font-medium text-text-muted">{ne.nodeKind}</span>
+                      <span className={`shrink-0 rounded px-1.5 py-0.5 ${NODE_BADGE[ne.status]}`}>{ne.status}</span>
+                      <span className="ml-auto shrink-0 text-[11px] text-label-muted">{formatDuration(ne.durationMs)}</span>
+                    </div>
+                    <DetailFields label="Inputs" data={ne.inputs} />
+                    <DetailFields label="Output" data={toRecord(ne.output)} />
                     {ne.errorMessage && (
-                      <span className="truncate text-red-500" title={ne.errorMessage}>
-                        {ne.errorMessage}
-                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-red-500">Error</span>
+                        <p className="break-words text-[11px] text-red-500">{ne.errorMessage}</p>
+                      </div>
                     )}
                   </div>
                 ))}

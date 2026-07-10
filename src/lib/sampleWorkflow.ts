@@ -33,7 +33,8 @@ export function buildSampleGraph(): WorkflowGraph {
               id: "text_field",
               name: "text_field",
               type: "text_field",
-              value: "We just launched a hand-stitched, sustainably-sourced leather backpack.",
+              value:
+                "Product: Wireless Bluetooth Headphones. Features: Noise cancellation, 30-hour battery, foldable design.",
             },
           ],
         },
@@ -57,10 +58,10 @@ export function buildSampleGraph(): WorkflowGraph {
         config: {
           model: DEFAULT_GEMINI_MODEL,
           prompt: "",
-          systemPrompt:
-            "You are a professional copywriter. Expand the input into a vivid, persuasive 2-3 sentence product description.",
+          systemPrompt: "You are a marketing copywriter. Write a one-paragraph product description.",
           temperature: 1,
           maxOutputTokens: 2048,
+          reasoning: true,
         },
       },
       {
@@ -71,9 +72,10 @@ export function buildSampleGraph(): WorkflowGraph {
           model: DEFAULT_GEMINI_MODEL,
           prompt: "",
           systemPrompt:
-            "You are a social media expert. Turn the product description into one punchy, attention-grabbing tweet hook, under 200 characters.",
+            "Condense the following product description into a tweet-length hook (under 240 characters).",
           temperature: 1,
           maxOutputTokens: 512,
+          reasoning: true,
         },
       },
       {
@@ -84,9 +86,10 @@ export function buildSampleGraph(): WorkflowGraph {
           model: DEFAULT_GEMINI_MODEL,
           prompt: "",
           systemPrompt:
-            "You are a creative director. Combine the tweet hook with the two provided image crops into one cohesive final marketing caption that references both visuals.",
+            "You are a social media manager. Combine the tweet hook and the two product crops into a final marketing post.",
           temperature: 1,
           maxOutputTokens: 1024,
+          reasoning: true,
         },
       },
       {
@@ -105,12 +108,18 @@ export function buildSampleGraph(): WorkflowGraph {
       { id: crypto.randomUUID(), source: crop1Id, sourceHandle: "output_image", target: finalGeminiId, targetHandle: "image" },
       { id: crypto.randomUUID(), source: crop2Id, sourceHandle: "output_image", target: finalGeminiId, targetHandle: "image" },
       { id: crypto.randomUUID(), source: finalGeminiId, sourceHandle: "response", target: responseId, targetHandle: "result" },
+      // Response returns both the final caption and the wide banner crop (Nodes table #7).
+      { id: crypto.randomUUID(), source: crop2Id, sourceHandle: "output_image", target: responseId, targetHandle: "result" },
     ],
     stickyNotes: [],
   };
 
+  // Parse each config back onto the node so the literals above are filled out
+  // with every schema default (topP/topK/reasoning/settingsOpen/imageUrl, …).
+  // Otherwise the saved template graph carries partial configs and the editor
+  // reads `undefined` for the omitted params.
   for (const node of graph.nodes) {
-    getNodeSpec(node.kind).configSchema.parse(node.config);
+    node.config = getNodeSpec(node.kind).configSchema.parse(node.config) as typeof node.config;
   }
 
   const validation = validateGraph(graph);

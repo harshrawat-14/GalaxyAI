@@ -115,8 +115,13 @@ export const geminiConfigSchema = z.object({
   seed: z.number().int().nullable().default(null),
   /** True -> generationConfig.responseMimeType = "application/json", else "text/plain". */
   jsonMode: z.boolean().default(false),
-  /** True -> generationConfig.thinkingConfig.thinkingBudget left to the model; false -> 0. */
-  reasoning: z.boolean().default(false),
+  /**
+   * True -> generationConfig.thinkingConfig.thinkingBudget left to the model; false -> 0.
+   * Defaults true because gemini-2.5-pro (the default model) has no "thinking off"
+   * mode — sending thinkingBudget:0 makes the API reject the call with
+   * "Budget 0 is invalid. This model only works in thinking mode."
+   */
+  reasoning: z.boolean().default(true),
   /** Collapsed-by-default Settings panel open/closed, persisted per node. */
   settingsOpen: z.boolean().default(false),
 });

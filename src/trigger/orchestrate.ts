@@ -133,6 +133,14 @@ export const orchestrate = task({
           const inputs = await resolveInputs(node, graph, getUpstreamResult);
           const spec = getNodeSpec(node.kind);
 
+          // Persist the resolved inputs (URLs/text only — media is inlined later
+          // at call time) so the History detail view can show "inputs used" per
+          // node (spec: Workflow History node-level details).
+          await prisma.nodeExecution.update({
+            where: { id: nodeExecutionIdFor(id) },
+            data: { inputs: inputs as Prisma.InputJsonValue },
+          });
+
           if (!spec.executable) {
             const outputs = resolveLocalOutputs(node);
             const recordOutput = localExecutionOutput(node, inputs, outputs) as Prisma.InputJsonValue;
