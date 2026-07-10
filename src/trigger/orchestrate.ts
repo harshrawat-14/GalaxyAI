@@ -221,6 +221,13 @@ async function finalizeRun(runId: string, settled: PromiseSettledResult<unknown>
       where: { id: runId },
       data: { status, finishedAt, durationMs: finishedAt.getTime() - run.startedAt.getTime() },
     }),
+    // Any node still "pending" here never ran because an upstream node failed —
+    // mark it "skipped" so a partial run reads clearly instead of leaving those
+    // nodes stuck looking like they're still queued.
+    prisma.nodeExecution.updateMany({
+      where: { runId, status: "pending" },
+      data: { status: "skipped", finishedAt },
+    }),
     prisma.workflow.update({ where: { id: run.workflowId }, data: { status: "idle" } }),
   ]);
 }

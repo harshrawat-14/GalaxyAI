@@ -81,7 +81,7 @@ describe("reorderRequestInputsFields", () => {
 
     expect(fieldIds()).toEqual(["c", "a", "b"]);
     const node = useWorkflowStore.getState().nodes.find((n) => n.id === "n1")!;
-    const moved = (node.data.config as { fields: { id: string; value: string }[] }).fields[0];
+    const moved = (node.data.config as { fields: { id: string; value: string }[] }).fields[0]!;
     expect(moved.value).toBe("vc"); // object preserved by id, not reconstructed
   });
 
