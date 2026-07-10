@@ -10,7 +10,14 @@ export const SAMPLE_WORKFLOW_NAME = "Parallel Fan-Out Demo";
  * all start at T=0; Gemini #2 starts the instant Gemini #1 finishes, without
  * waiting on the (30s+) crops; Final Gemini waits only on its three direct
  * parents — {Crop #1, Crop #2, Gemini #2}.
+ *
+ * Layout (left -> right): Request-Inputs, then a vertical column of
+ * {Gemini #1, Crop #1, Crop #2}, then Gemini #2, then Final Gemini, then
+ * Response. Columns are spaced wide and rows tall so no nodes overlap and every
+ * edge is legible at 100%.
  */
+const COL_X = { inputs: 0, fanOut: 480, gemini2: 980, finalGemini: 1480, response: 1980 };
+const ROW_Y = { top: 40, middle: 620, bottom: 1200 };
 export function buildSampleGraph(): WorkflowGraph {
   const inputsId = crypto.randomUUID();
   const crop1Id = crypto.randomUUID();
@@ -25,7 +32,7 @@ export function buildSampleGraph(): WorkflowGraph {
       {
         id: inputsId,
         kind: "request-inputs",
-        position: { x: 40, y: 300 },
+        position: { x: COL_X.inputs, y: ROW_Y.middle },
         config: {
           fields: [
             { id: "image_field", name: "image_field", type: "image_field", value: null },
@@ -42,19 +49,19 @@ export function buildSampleGraph(): WorkflowGraph {
       {
         id: crop1Id,
         kind: "crop-image",
-        position: { x: 380, y: 100 },
+        position: { x: COL_X.fanOut, y: ROW_Y.middle },
         config: { x: 20, y: 20, width: 60, height: 60 }, // tight crop
       },
       {
         id: crop2Id,
         kind: "crop-image",
-        position: { x: 380, y: 500 },
+        position: { x: COL_X.fanOut, y: ROW_Y.bottom },
         config: { x: 0, y: 0, width: 100, height: 50 }, // wide crop
       },
       {
         id: gemini1Id,
         kind: "gemini",
-        position: { x: 380, y: 300 },
+        position: { x: COL_X.fanOut, y: ROW_Y.top },
         config: {
           model: DEFAULT_GEMINI_MODEL,
           prompt: "",
@@ -67,7 +74,7 @@ export function buildSampleGraph(): WorkflowGraph {
       {
         id: gemini2Id,
         kind: "gemini",
-        position: { x: 700, y: 300 },
+        position: { x: COL_X.gemini2, y: ROW_Y.top },
         config: {
           model: DEFAULT_GEMINI_MODEL,
           prompt: "",
@@ -81,7 +88,7 @@ export function buildSampleGraph(): WorkflowGraph {
       {
         id: finalGeminiId,
         kind: "gemini",
-        position: { x: 1020, y: 300 },
+        position: { x: COL_X.finalGemini, y: ROW_Y.middle },
         config: {
           model: DEFAULT_GEMINI_MODEL,
           prompt: "",
@@ -95,7 +102,7 @@ export function buildSampleGraph(): WorkflowGraph {
       {
         id: responseId,
         kind: "response",
-        position: { x: 1360, y: 300 },
+        position: { x: COL_X.response, y: ROW_Y.middle },
         config: { result: null },
       },
     ],
