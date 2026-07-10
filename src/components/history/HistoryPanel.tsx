@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import type { NodeStatus, RunStatus } from "@/domain/types";
 
@@ -96,22 +96,50 @@ export function HistoryPanel({
   onClose?: () => void;
 }) {
   const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<RunDetail | null>(null);
   const [filter, setFilter] = useState<(typeof RUN_FILTERS)[number]>("All");
 
-  useEffect(() => {
+  // One refresh = the run list plus (if a run is open) its live node-level
+  // detail. Node state is driven server-side by Trigger.dev; the canvas gets it
+  // over Realtime, but this DB-backed panel has no subscription, so both the
+  // list AND the expanded detail must be refetched — previously the detail was
+  // fetched once on expand and never again, which is why a finished node kept
+  // showing "pending" until the panel was closed and reopened.
+  const load = useCallback(() => {
     fetch(`/api/workflows/${workflowId}/runs`)
-      .then((res) => res.json())
+      .then((r) => r.json() as Promise<RunSummary[]>)
       .then(setRuns);
-  }, [workflowId, refreshKey]);
+    if (expandedId) {
+      fetch(`/api/runs/${expandedId}`)
+        .then((r) => r.json() as Promise<RunDetail>)
+        .then(setExpanded);
+    }
+  }, [workflowId, expandedId]);
 
-  async function toggleExpand(runId: string) {
-    if (expanded?.id === runId) {
+  // Initial load, on external bumps (run start/finish), and when a different
+  // run is expanded.
+  useEffect(() => {
+    load();
+  }, [load, refreshKey]);
+
+  // Live polling while any run is still running: re-poll every 2s and self-stop
+  // once everything is terminal. This is what makes statuses/outputs stream in
+  // without a manual close/reopen.
+  useEffect(() => {
+    if (!runs.some((r) => r.status === "running")) return;
+    const timer = setTimeout(load, 2000);
+    return () => clearTimeout(timer);
+  }, [runs, load]);
+
+  function toggleExpand(runId: string) {
+    if (expandedId === runId) {
+      setExpandedId(null);
       setExpanded(null);
       return;
     }
-    const res = await fetch(`/api/runs/${runId}`);
-    setExpanded(await res.json());
+    setExpandedId(runId);
+    setExpanded(null); // clear the previous run's detail; `load` fills this one in
   }
 
   const filteredRuns = useMemo(
@@ -170,9 +198,12 @@ export function HistoryPanel({
               <span className="ml-auto text-label-muted">{formatDuration(run.durationMs)}</span>
               <span className="text-label-muted">{new Date(run.startedAt).toLocaleTimeString()}</span>
             </button>
-            {expanded?.id === run.id && (
+            {expandedId === run.id && (
               <div className="space-y-2 border-t border-divider px-3 py-2">
-                {expanded.nodeExecutions.map((ne) => (
+                {(!expanded || expanded.id !== run.id) && (
+                  <p className="text-[11px] text-label-muted">Loading…</p>
+                )}
+                {expanded?.id === run.id && expanded.nodeExecutions.map((ne) => (
                   <div key={ne.id} className="space-y-1 rounded border border-card-border bg-canvas-bg px-2 py-1.5">
                     <div className="flex items-center gap-2 text-xs">
                       <span className="truncate font-medium text-text-muted">{ne.nodeKind}</span>

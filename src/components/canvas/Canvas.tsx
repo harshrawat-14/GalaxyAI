@@ -134,6 +134,11 @@ export function Canvas() {
           panOnDrag={panMode}
           selectionOnDrag={!panMode}
           fitView
+          // React Flow defaults to minZoom 0.5, so the "won't zoom past 50%"
+          // wall is the default, not a bug — widen it so large fan-out graphs
+          // (e.g. the sample workflow) fit fully on screen.
+          minZoom={0.2}
+          maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
           {/* size=1.5 -> r=size/2=0.75, half the previous 1.5px radius. */}
