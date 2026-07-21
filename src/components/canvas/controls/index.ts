@@ -15,5 +15,4 @@ export { TextAreaParam } from "./TextAreaParam";
 export { ResetButton } from "./ResetButton";
 export { AddButton } from "./AddButton";
 export { OutputBox } from "./OutputBox";
-export { UploadControl } from "./UploadControl";
 export { SettingsSection } from "./SettingsSection";

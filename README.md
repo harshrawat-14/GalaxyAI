@@ -187,30 +187,36 @@ Click **Deploy**. Vercel will run `npx prisma generate && next build` automatica
 src/
 ├── app/
 │   ├── api/
-│   │   ├── upload/signature/     # Signs Transloadit assembly params
-│   │   └── workflow/
-│   │       ├── route.ts              # Create / list workflows
-│   │       ├── [id]/route.ts         # Get / update / delete a workflow
-│   │       ├── [id]/run/             # Start a workflow run
-│   │       ├── [id]/runs/            # Poll run history
-│   │       └── execute-node/         # Execute a single node server-side
-│   ├── workflow/                 # Main canvas page (protected by Clerk)
+│   │   ├── uploads/params/           # Signs Transloadit assembly params
+│   │   ├── transloadit/webhook/      # Completes the crop task's wait token
+│   │   ├── workflows/
+│   │   │   ├── route.ts              # Create / list workflows
+│   │   │   ├── [id]/route.ts         # Get / update / delete a workflow
+│   │   │   └── [id]/runs/            # Create a run (phase 1) + run history
+│   │   ├── runs/[runId]/route.ts     # Poll a single run
+│   │   ├── runs/[runId]/start/       # Trigger the run (phase 2)
+│   │   └── usage/                    # Daily usage counter for the Bal pill
+│   ├── dashboard/                # Workflow list
+│   ├── workflow/[id]/            # Main canvas page (protected by Clerk)
 │   ├── sign-in/ sign-up/         # Clerk auth pages
 │   └── page.tsx                  # Landing redirect
+├── domain/                       # Pure, framework-free core
+│   ├── dag.ts                        # Cycle checks, topo order, edge validation
+│   ├── nodes.ts                      # Node registry: ports, config schemas
+│   └── ports.ts                      # Port type-compatibility rules
 ├── components/
-│   ├── canvas/
-│   │   ├── WorkflowCanvas.tsx        # ReactFlow wrapper
-│   │   └── edges/AnimatedEdge.tsx
-│   ├── nodes/                    # TextNode, LLMNode, UploadImageNode, …
-│   └── sidebar/                  # LeftSidebar (palette) + RightSidebar (history)
+│   ├── canvas/                       # Canvas.tsx, RunController, toolbar, sidebar
+│   ├── nodes/                    # RequestInputs, Gemini, CropImage, Response, StickyNote
+│   ├── history/                  # Run history panel
+│   └── workflow-detail/          # Playground / API / Preview tabs
 ├── store/
 │   └── workflow-store.ts         # Zustand + zundo + Immer store
-├── trigger/                      # Trigger.dev background tasks (LLM, crop, extract-frame)
-├── lib/
-│   ├── llm-client.ts             # LLM routing (Gemini / Groq / HuggingFace)
-│   ├── sample-workflow.ts        # Pre-built sample workflow + starter templates
-│   └── utils.ts
-└── types/                        # Workflow and node TypeScript types
+├── trigger/                      # Trigger.dev tasks
+│   ├── orchestrate.ts                # Promise-graph run engine
+│   ├── gemini.task.ts                # One Gemini generation
+│   ├── crop.task.ts                  # FFmpeg crop + Transloadit upload
+│   └── resolve.ts                    # Node input resolution
+└── lib/                          # gemini.ts, transloadit.ts, sampleWorkflow.ts, …
 ```
 
 ---
@@ -219,12 +225,11 @@ src/
 
 | Node | Purpose |
 |---|---|
-| **Text** | Static text input — wire into an LLM's system prompt or user message handle |
-| **Upload Image** | Upload an image via Transloadit CDN (or local object URL as fallback) |
-| **Upload Video** | Same as Upload Image but for video files |
-| **Run LLM** | Call Gemini (or Groq/HuggingFace in dev). Accepts multiple image inputs. Choose model in-node. |
+| **Request-Inputs** | Defines the workflow's entry fields (text / number / image). Each field becomes an output handle. Image fields upload via Transloadit and show a preview. |
+| **Gemini** | Calls Gemini with a prompt, optional system prompt, and optional media (image / video / audio / file). Model and generation params are set in-node. |
 | **Crop Image** | Crop an image to a region defined by x/y/width/height percentages (FFmpeg via Trigger.dev) |
-| **Extract Frame** | Pull a single frame from a video at a given timestamp (FFmpeg via Trigger.dev) |
+| **Response** | The workflow's final output — accepts multiple inputs and returns them when the run finishes |
+| **Sticky Note** | Canvas annotation; not part of execution |
 
 ### Connecting nodes
 
@@ -235,11 +240,18 @@ Drag from an output handle (right side) to a compatible input handle (left side)
 
 ### Running a workflow
 
-| Mode | How |
-|---|---|
-| **Full** | Click **Run** in the toolbar |
-| **Selection** | Select nodes first, then click Run |
-| **Single node** | Right-click any node → **Run this node** |
+| Mode | How | What executes |
+|---|---|---|
+| **Full** | Click **Run** in the toolbar | Every node in the graph |
+| **Selection** | Select nodes, then click **Run selected** | Only the selected nodes |
+| **Single node** | Click the ↺ button in a node's header | Only that node |
+
+Selection and single-node runs execute **only the nodes you targeted** — the run
+scope is never expanded to include upstream dependencies. When a targeted node
+needs a value from a parent that is not in the run, that value is read from the
+parent's most recent successful output (or its manually entered value) rather
+than re-executing it. If neither exists, the node fails with a message naming
+the input it couldn't resolve.
 
 ### Keyboard shortcuts
 

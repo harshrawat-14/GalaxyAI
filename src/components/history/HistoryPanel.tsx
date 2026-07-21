@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import type { NodeStatus, RunStatus } from "@/domain/types";
+import { isImageUrl } from "@/lib/isImageUrl";
 
 interface RunSummary {
   id: string;
@@ -45,6 +46,24 @@ function toRecord(output: unknown): Record<string, unknown> | null {
   return { result: output };
 }
 
+/**
+ * One input/output value. Image URLs render as thumbnails rather than raw CDN
+ * links so a past run's images are reviewable in place — including the array
+ * form, which is how a multi-input port (Gemini's `image`) is stored.
+ */
+function DetailValue({ value }: { value: unknown }) {
+  const images = isImageUrl(value) ? [value] : Array.isArray(value) ? value.filter(isImageUrl) : [];
+  if (images.length === 0) return <>{formatValue(value)}</>;
+  return (
+    <span className="mt-0.5 flex flex-wrap gap-1">
+      {images.map((url) => (
+        // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN result, not worth next/image config here
+        <img key={url} src={url} alt="" className="h-16 rounded border border-card-border object-contain" />
+      ))}
+    </span>
+  );
+}
+
 /** Labelled key/value list for a node's inputs/output map (LLD §7 details view). */
 function DetailFields({ label, data }: { label: string; data: Record<string, unknown> | null }) {
   const entries = data ? Object.entries(data).filter(([, v]) => v != null && v !== "") : [];
@@ -55,7 +74,9 @@ function DetailFields({ label, data }: { label: string; data: Record<string, unk
       {entries.map(([key, value]) => (
         <div key={key} className="flex gap-1.5 text-[11px]">
           <span className="shrink-0 text-label-muted">{key}:</span>
-          <span className="min-w-0 break-words text-text-muted">{formatValue(value)}</span>
+          <span className="min-w-0 break-words text-text-muted">
+            <DetailValue value={value} />
+          </span>
         </div>
       ))}
     </div>

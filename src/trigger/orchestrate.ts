@@ -46,6 +46,11 @@ export interface OrchestratePayload {
  * parents, memoized so a node starts the instant its own dependencies
  * finish — never blocking on unrelated siblings (LLD §6, AGENT.md §2.3).
  *
+ * `scope` is exactly the set of nodes the user targeted and is never widened:
+ * a single-node run executes one node, a multi-select run executes those nodes
+ * and nothing else. Upstream dependencies outside the scope are NOT executed —
+ * their values are read from the last successful run (getCachedOrManualOutput).
+ *
  * Executable nodes are run via `task.trigger()` + `runs.poll()`, NOT
  * `triggerAndWait()`. The orchestrator's whole point is concurrency — it awaits
  * several children at once via `Promise.all(parents.map(resultFor))` — and

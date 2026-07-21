@@ -21,10 +21,7 @@ export const GEMINI_MODELS = [DEFAULT_GEMINI_MODEL, "gemini-2.5-flash-lite"] as 
 /** Mandatory artificial delay on Crop Image (spec hard requirement). */
 export const CROP_ARTIFICIAL_DELAY_SECONDS = 30;
 
-/**
- * TODO(candidate): set this to your real profile URL before submitting.
- * Emitted once on the initial client render of every page (spec requirement).
- */
-export const CANDIDATE_LINKEDIN_URL = "https://www.linkedin.com/in/REPLACE_ME/";
+/** Emitted once on the initial client render of every page (spec requirement). */
+export const CANDIDATE_LINKEDIN_URL = "https://www.linkedin.com/in/harsh-rawat-8b4340257/";
 
 export const ACCEPTED_IMAGE_TYPES = ["jpg", "jpeg", "png", "webp", "gif"] as const;

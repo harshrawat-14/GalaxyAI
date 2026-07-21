@@ -116,10 +116,13 @@ export const geminiConfigSchema = z.object({
   /** True -> generationConfig.responseMimeType = "application/json", else "text/plain". */
   jsonMode: z.boolean().default(false),
   /**
-   * True -> generationConfig.thinkingConfig.thinkingBudget left to the model; false -> 0.
-   * Defaults true because gemini-2.5-pro (the default model) has no "thinking off"
+   * True -> thinking is capped at half of maxOutputTokens; false -> disabled
+   * (0), or the 128-token floor on gemini-2.5-pro, which has no "thinking off"
    * mode — sending thinkingBudget:0 makes the API reject the call with
-   * "Budget 0 is invalid. This model only works in thinking mode."
+   * "Budget 0 is invalid. This model only works in thinking mode." Defaults
+   * true. The budget is never left to the model: thinking is billed against
+   * maxOutputTokens, so an uncapped budget can consume the whole allowance and
+   * return an empty response (see lib/gemini.ts thinkingBudgetFor).
    */
   reasoning: z.boolean().default(true),
   /** Collapsed-by-default Settings panel open/closed, persisted per node. */
