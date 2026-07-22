@@ -101,11 +101,12 @@ export type CropImageConfig = z.infer<typeof cropImageConfigSchema>;
  * the AI Studio model list reports — it's the single source of truth here.
  */
 export const GEMINI_MODELS = [
-  { id: "gemini-3-pro-preview", label: "Gemini 3.1 Pro" },
+  { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro" },
+  { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+  { id: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash Lite" },
   { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
-  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
 ] as const;
 
 /** Single source of truth for the default model id (first picker entry). */
@@ -114,6 +115,16 @@ export const DEFAULT_GEMINI_MODEL = GEMINI_MODELS[0].id;
 /** Friendly label for a model id, falling back to the id itself for legacy/imported graphs. */
 export function geminiModelLabel(id: string): string {
   return GEMINI_MODELS.find((m) => m.id === id)?.label ?? id;
+}
+
+/**
+ * Maps any model id not in the current picker to the default. Guards against a
+ * graph saved with a since-retired id (e.g. an earlier "gemini-3-pro-preview")
+ * reaching the API and 404-ing — applied at the Gemini dropdown and again when
+ * building the task payload, so stale ids never execute.
+ */
+export function resolveGeminiModel(id: string): string {
+  return GEMINI_MODELS.some((m) => m.id === id) ? id : DEFAULT_GEMINI_MODEL;
 }
 
 // Gemini-valid generationConfig params only (docs/prompts/model-and-crop-nodes.md §3.2/§3.4)

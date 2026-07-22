@@ -1,3 +1,4 @@
+import { resolveGeminiModel } from "@/domain/nodes";
 import type { CropImageConfig, GeminiConfig, NodeKind, RequestInputsConfig } from "@/domain/nodes";
 import type { GraphNode } from "@/domain/types";
 import { cropExecute, type CropTaskOutput, type CropTaskPayload } from "./crop.task";
@@ -41,7 +42,8 @@ export function buildTaskPayload(
       const config = node.config as GeminiConfig;
       return {
         nodeExecutionId,
-        model: config.model,
+        // Normalize a since-retired/unknown id to the default so it never 404s.
+        model: resolveGeminiModel(config.model),
         systemPrompt: (inputs.system_prompt as string | null) ?? null,
         prompt: inputs.prompt as string,
         images: (inputs.image as string[] | null) ?? [],
