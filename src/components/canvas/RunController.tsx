@@ -16,16 +16,26 @@ interface NodeMetadataEntry {
   output?: unknown;
 }
 
-const TERMINAL_RUN_STATUSES = new Set([
-  "COMPLETED",
-  "FAILED",
-  "CANCELED",
-  "CRASHED",
-  "SYSTEM_FAILURE",
-  "TIMED_OUT",
-  "INTERRUPTED",
-  "EXPIRED",
-]);
+interface NodeExecutionRow {
+  nodeId: string;
+  nodeKind: string;
+  status: NodeStatus;
+  output: unknown;
+}
+
+/**
+ * Maps a persisted NodeExecution's stored output to the port-keyed shape the
+ * canvas nodes read (`data.output[portId]`). Executable tasks store their raw
+ * task output ({ text } / { url }); local nodes already store a port-keyed map.
+ * Mirrors the server's extractOutputValue so hydrated output matches the graph.
+ */
+function toPortOutput(nodeKind: string, output: unknown): unknown {
+  if (output == null) return undefined;
+  const rec = output as Record<string, unknown>;
+  if (nodeKind === "gemini") return { response: rec.text };
+  if (nodeKind === "crop-image") return { output_image: rec.url };
+  return rec;
+}
 
 interface RunControllerValue {
   /** scope is derived from nodeIds.length: [] -> full, [one] -> single, [many] -> partial. */
@@ -64,19 +74,16 @@ export function RunControllerProvider({
   });
   const run = runs?.[0];
 
-  useEffect(() => {
-    if (!run || !TERMINAL_RUN_STATUSES.has(run.status)) return;
-    setActive(null);
-    started.current = null;
-    onRunsChanged();
-  }, [run, onRunsChanged]);
-
-  // Reliability fallback for clearing `isRunning`. The realtime terminal
-  // status above is best-effort — if that final update is missed (or the
-  // subscription doesn't re-fire), `active` would never clear and EVERY run
-  // button would stay disabled forever after a single run. So while a run is
-  // active, also poll our own DB status; once the WorkflowRun is terminal
-  // (success/failed/partial, i.e. not "running"), clear regardless of realtime.
+  // Single terminal handler, driven by our own DB rather than the realtime
+  // stream. The realtime terminal status is best-effort: if that final update
+  // is missed (or the subscription doesn't re-fire), the run would never be
+  // finalized on the client — every run button stuck disabled AND the nodes'
+  // inline outputs never populated even though the run succeeded. So while a
+  // run is active, poll GET /api/runs/:id; once the WorkflowRun is terminal,
+  // hydrate every node's status + output from the authoritative NodeExecution
+  // records (so the canvas matches History regardless of any missed realtime
+  // update), then release the running lock. Live glow still comes from the
+  // realtime metadata effect below.
   useEffect(() => {
     if (!active) return;
     const runId = active.runId;
@@ -85,12 +92,14 @@ export function RunControllerProvider({
       try {
         const res = await fetch(`/api/runs/${runId}`);
         if (!res.ok) return;
-        const data = (await res.json()) as { status?: string };
-        if (!cancelled && data.status && data.status !== "running") {
-          setActive((cur) => (cur?.runId === runId ? null : cur));
-          started.current = null;
-          onRunsChanged();
+        const data = (await res.json()) as { status?: string; nodeExecutions?: NodeExecutionRow[] };
+        if (cancelled || !data.status || data.status === "running") return;
+        for (const ne of data.nodeExecutions ?? []) {
+          applyRealtime(ne.nodeId, ne.status, toPortOutput(ne.nodeKind, ne.output));
         }
+        setActive((cur) => (cur?.runId === runId ? null : cur));
+        started.current = null;
+        onRunsChanged();
       } catch {
         // transient network error — the next tick retries
       }
@@ -100,7 +109,7 @@ export function RunControllerProvider({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [active, onRunsChanged]);
+  }, [active, applyRealtime, onRunsChanged]);
 
   useEffect(() => {
     if (!run?.metadata) return;

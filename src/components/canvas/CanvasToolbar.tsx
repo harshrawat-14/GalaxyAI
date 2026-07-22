@@ -6,9 +6,9 @@ import {
   ChevronRight,
   Hand,
   Keyboard,
+  LayoutGrid,
   Maximize2,
   Move,
-  Network,
   Redo2,
   Undo2,
   ZoomIn,
@@ -148,7 +148,7 @@ export function CanvasToolbar({
           setTimeout(() => fitView({ padding: 0.2, duration: 400, maxZoom: 1 }), 60);
         }}
       >
-        <Network size={18} />
+        <LayoutGrid size={18} />
       </ToolbarButton>
       <ToolbarButton label={panMode ? "Switch to select mode" : "Switch to pan mode"} active={panMode} onClick={onTogglePan}>
         {panMode ? <Hand size={18} /> : <Move size={18} />}
