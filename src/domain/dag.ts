@@ -158,6 +158,44 @@ export function validateGraph(graph: WorkflowGraph): ValidationResult {
 // out-of-scope parent come from its last successful output instead of a fresh
 // execution; see the orchestrator's getCachedOrManualOutput.
 
+/**
+ * Left→right layered auto-layout. Each node's column is its longest path from a
+ * root (a node with no parents), so every edge points strictly rightward; nodes
+ * sharing a column are stacked and centered vertically around a common midline.
+ * Pure positioning only — returns new coordinates keyed by node id, leaving the
+ * caller to apply them. Sticky notes are not part of the DAG and aren't touched.
+ */
+export function autoLayout(
+  graph: WorkflowGraph,
+  opts?: { colGap?: number; rowGap?: number },
+): Map<string, { x: number; y: number }> {
+  const colGap = opts?.colGap ?? 520;
+  const rowGap = opts?.rowGap ?? 360;
+
+  const order = topologicalOrder(graph); // throws on a cycle; graph is a DAG invariant
+  const depth = new Map<string, number>();
+  for (const id of order) {
+    const parents = directParents(graph, id);
+    depth.set(id, parents.length ? Math.max(...parents.map((p) => depth.get(p) ?? 0)) + 1 : 0);
+  }
+
+  const columns = new Map<number, string[]>();
+  for (const id of order) {
+    const d = depth.get(id) ?? 0;
+    const col = columns.get(d) ?? [];
+    col.push(id);
+    columns.set(d, col);
+  }
+
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const [d, ids] of columns) {
+    ids.forEach((id, i) => {
+      positions.set(id, { x: d * colGap, y: (i - (ids.length - 1) / 2) * rowGap });
+    });
+  }
+  return positions;
+}
+
 export function nodeById(graph: WorkflowGraph, id: string): GraphNode | undefined {
   return graph.nodes.find((n) => n.id === id);
 }

@@ -6,9 +6,9 @@ import {
   ChevronRight,
   Hand,
   Keyboard,
-  LayoutGrid,
   Maximize2,
   Move,
+  Network,
   Redo2,
   Undo2,
   ZoomIn,
@@ -59,13 +59,11 @@ function Divider() {
  * same ReactFlowProvider as <ReactFlow>, per Canvas.tsx).
  */
 export function CanvasToolbar({
-  showGrid,
-  onToggleGrid,
+  onAutoArrange,
   panMode,
   onTogglePan,
 }: {
-  showGrid: boolean;
-  onToggleGrid: () => void;
+  onAutoArrange: () => void;
   panMode: boolean;
   onTogglePan: () => void;
 }) {
@@ -142,8 +140,15 @@ export function CanvasToolbar({
       <ToolbarButton label="Fit view" onClick={() => fitView()}>
         <Maximize2 size={18} />
       </ToolbarButton>
-      <ToolbarButton label="Toggle grid" active={showGrid} onClick={onToggleGrid}>
-        <LayoutGrid size={18} />
+      <ToolbarButton
+        label="Auto-arrange"
+        onClick={() => {
+          onAutoArrange();
+          // Let React Flow apply the new positions, then frame them.
+          setTimeout(() => fitView({ padding: 0.2, duration: 400, maxZoom: 1 }), 60);
+        }}
+      >
+        <Network size={18} />
       </ToolbarButton>
       <ToolbarButton label={panMode ? "Switch to select mode" : "Switch to pan mode"} active={panMode} onClick={onTogglePan}>
         {panMode ? <Hand size={18} /> : <Move size={18} />}

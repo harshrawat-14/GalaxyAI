@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  autoLayout,
   directChildren,
   directParents,
   incomingEdges,
@@ -277,5 +278,32 @@ describe("validateGraph", () => {
     const g = sampleGraph();
     g.edges.push(edge("cyclic", "gemini2", "response", "gemini1", "system_prompt"));
     expect(validateGraph(g)).toEqual({ ok: false, reason: "Graph contains a cycle" });
+  });
+});
+
+describe("autoLayout", () => {
+  it("places each node in a column equal to its longest path from a root", () => {
+    // diamond: A -> B,C -> D, so columns are A=0, B=C=1, D=2.
+    const pos = autoLayout(diamondGraph(), { colGap: 500, rowGap: 300 });
+    expect(pos.get("A")!.x).toBe(0);
+    expect(pos.get("B")!.x).toBe(500);
+    expect(pos.get("C")!.x).toBe(500);
+    expect(pos.get("D")!.x).toBe(1000);
+  });
+
+  it("stacks and vertically centers nodes that share a column", () => {
+    const pos = autoLayout(diamondGraph(), { colGap: 500, rowGap: 300 });
+    // B and C share column 1; centered around 0 means -150 and +150.
+    const ys = [pos.get("B")!.y, pos.get("C")!.y].sort((a, b) => a - b);
+    expect(ys).toEqual([-150, 150]);
+    // Single-node columns sit on the midline.
+    expect(pos.get("A")!.y).toBe(0);
+    expect(pos.get("D")!.y).toBe(0);
+  });
+
+  it("returns a position for every node in the graph", () => {
+    const g = sampleGraph();
+    const pos = autoLayout(g);
+    expect(pos.size).toBe(g.nodes.length);
   });
 });

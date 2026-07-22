@@ -71,9 +71,9 @@ export function Canvas() {
   const disconnect = useWorkflowStore((s) => s.disconnect);
   const removeNode = useWorkflowStore((s) => s.removeNode);
   const removeStickyNote = useWorkflowStore((s) => s.removeStickyNote);
+  const autoArrange = useWorkflowStore((s) => s.autoArrange);
   // Toolbar-only view state (not workflow data, so not persisted via the
-  // store/autosave) — grid visibility and pan-vs-select drag mode.
-  const [showGrid, setShowGrid] = useState(true);
+  // store/autosave) — pan-vs-select drag mode.
   const [panMode, setPanMode] = useState(true);
 
   // Structural removal (deletable guard, dependent-edge cleanup, undo snapshot)
@@ -146,13 +146,13 @@ export function Canvas() {
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
-          {/* size=1.5 -> r=size/2=0.75, half the previous 1.5px radius. */}
-          {showGrid && <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} color="#CACACA" />}
+          {/* size=1.5 -> r=size/2=0.75, half the previous 1.5px radius. Always
+              shown — the dot grid is a spec requirement, so there's no toggle. */}
+          <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} color="#CACACA" />
         </ReactFlow>
         <CollapsibleMiniMap />
         <CanvasToolbar
-          showGrid={showGrid}
-          onToggleGrid={() => setShowGrid((g) => !g)}
+          onAutoArrange={autoArrange}
           panMode={panMode}
           onTogglePan={() => setPanMode((p) => !p)}
         />

@@ -1,6 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import { create } from "zustand";
-import { validateConnection, type ConnectionAttempt, type ValidationResult } from "@/domain/dag";
+import { autoLayout, validateConnection, type ConnectionAttempt, type ValidationResult } from "@/domain/dag";
 import { getNodeSpec, type NodeKind, type RequestField, type RequestInputsConfig } from "@/domain/nodes";
 import type { GraphEdge, GraphNode, NodeStatus, StickyNote, WorkflowGraph } from "@/domain/types";
 
@@ -74,6 +74,8 @@ interface WorkflowStoreState {
   setNodes: (nodes: AnyCanvasNode[] | ((current: AnyCanvasNode[]) => AnyCanvasNode[])) => void;
   setEdges: (edges: NextFlowEdge[] | ((current: NextFlowEdge[]) => NextFlowEdge[])) => void;
   addNode: (kind: NodeKind, position: { x: number; y: number }) => void;
+  /** Re-lays out every graph node into a clean left→right layered layout (undoable, autosaved). */
+  autoArrange: () => void;
   removeNode: (id: string) => void;
   updateNodeConfig: (
     id: string,
@@ -275,6 +277,27 @@ export const useWorkflowStore = create<WorkflowStoreState>((set, get) => ({
       nodes: [...state.nodes, node],
       dirty: true,
     }));
+  },
+
+  autoArrange: () => {
+    set((state) => {
+      const graph = toWorkflowGraph(state.nodes, state.edges);
+      let layout: Map<string, { x: number; y: number }>;
+      try {
+        layout = autoLayout(graph);
+      } catch {
+        return state; // cycle (shouldn't happen — DAG invariant); leave positions untouched
+      }
+      return {
+        past: [...state.past, snapshotOf(state)],
+        future: [],
+        // Sticky notes aren't part of the DAG, so they keep their positions.
+        nodes: state.nodes.map((n) =>
+          !isStickyNoteNode(n) && layout.has(n.id) ? { ...n, position: layout.get(n.id)! } : n,
+        ),
+        dirty: true,
+      };
+    });
   },
 
   removeNode: (id) => {
