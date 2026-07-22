@@ -71,6 +71,37 @@ export function RunControllerProvider({
     onRunsChanged();
   }, [run, onRunsChanged]);
 
+  // Reliability fallback for clearing `isRunning`. The realtime terminal
+  // status above is best-effort — if that final update is missed (or the
+  // subscription doesn't re-fire), `active` would never clear and EVERY run
+  // button would stay disabled forever after a single run. So while a run is
+  // active, also poll our own DB status; once the WorkflowRun is terminal
+  // (success/failed/partial, i.e. not "running"), clear regardless of realtime.
+  useEffect(() => {
+    if (!active) return;
+    const runId = active.runId;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/runs/${runId}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { status?: string };
+        if (!cancelled && data.status && data.status !== "running") {
+          setActive((cur) => (cur?.runId === runId ? null : cur));
+          started.current = null;
+          onRunsChanged();
+        }
+      } catch {
+        // transient network error — the next tick retries
+      }
+    };
+    const interval = setInterval(poll, 2500);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [active, onRunsChanged]);
+
   useEffect(() => {
     if (!run?.metadata) return;
     for (const [nodeId, value] of Object.entries(run.metadata)) {
