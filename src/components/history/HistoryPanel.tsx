@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import type { NodeStatus, RunStatus } from "@/domain/types";
+import { ImagePreview } from "@/components/ui/ImagePreview";
 import { isImageUrl } from "@/lib/isImageUrl";
 
 interface RunSummary {
@@ -57,8 +58,7 @@ function DetailValue({ value }: { value: unknown }) {
   return (
     <span className="mt-0.5 flex flex-wrap gap-1">
       {images.map((url) => (
-        // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN result, not worth next/image config here
-        <img key={url} src={url} alt="" className="h-16 rounded border border-card-border object-contain" />
+        <ImagePreview key={url} src={url} className="h-16 rounded border border-card-border object-contain" />
       ))}
     </span>
   );

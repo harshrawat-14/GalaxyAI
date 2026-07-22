@@ -4,6 +4,7 @@ import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks";
 import { AlignLeft, Hash, Image as ImageIcon, PlayCircle, Search, SquareCheck, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OutputBox } from "@/components/canvas/controls";
+import { ImagePreview } from "@/components/ui/ImagePreview";
 import { nodeDisplayLabel, type RequestField, type RequestInputsConfig } from "@/domain/nodes";
 import type { NodeExecutionRecord, NodeStatus, WorkflowGraph, WorkflowRun } from "@/domain/types";
 import { estimateGraphTokens, estimateRunCredits, formatM } from "@/lib/estimates";
@@ -292,11 +293,10 @@ export function PlaygroundTab({ workflowId, graph }: { workflowId: string; graph
                     <div className="mt-2 flex items-center gap-2">
                       {values[field.id] ? (
                         <div className="group relative w-full overflow-hidden rounded-lg border border-card-border bg-canvas-bg">
-                          {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN image */}
-                          <img
+                          <ImagePreview
                             src={values[field.id] as string}
                             alt={field.name}
-                            data-testid="playground-image-preview"
+                            testId="playground-image-preview"
                             className="h-32 w-full object-contain"
                           />
                           <label className="absolute inset-x-0 bottom-0 flex cursor-pointer items-center justify-center gap-1 bg-black/55 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">

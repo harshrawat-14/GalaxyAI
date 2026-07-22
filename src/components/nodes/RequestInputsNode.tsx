@@ -8,6 +8,7 @@ import { useOnClickOutside } from "@/hooks/useOnClickOutside";
 import { ACCEPTED_IMAGE_TYPES } from "@/lib/constants";
 import { UnsupportedImageTypeError, uploadImage } from "@/lib/uploadImage";
 import { useWorkflowStore, type NextFlowNode } from "@/store/workflow-store";
+import { ImagePreview } from "@/components/ui/ImagePreview";
 import { NodeInfoButton, NodeShell, PortRow } from "./NodeShell";
 
 const ACCEPT_ATTR = ACCEPTED_IMAGE_TYPES.map((ext) => `.${ext}`).join(",");
@@ -309,11 +310,10 @@ function RequestInputField({
             // Full-width preview of the uploaded image, sized so the picture is
             // actually legible on the card (a 40px thumbnail read as "no preview").
             <div className="group relative overflow-hidden rounded-lg border border-card-border bg-canvas-bg">
-              {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN image, not worth next/image config here */}
-              <img
+              <ImagePreview
                 src={field.value}
                 alt={field.name}
-                data-testid="image-field-preview"
+                testId="image-field-preview"
                 className="h-24 w-full object-contain"
               />
               <label className="absolute inset-x-0 bottom-0 flex cursor-pointer items-center justify-center gap-1 bg-black/55 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">

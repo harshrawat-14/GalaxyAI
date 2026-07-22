@@ -4,6 +4,7 @@ import type { NodeProps } from "@xyflow/react";
 import { Info, Plus, Upload, X } from "lucide-react";
 import { useState } from "react";
 import { SliderParam, OutputBox } from "@/components/canvas/controls";
+import { ImagePreview } from "@/components/ui/ImagePreview";
 import { getNodeSpec, type CropImageConfig } from "@/domain/nodes";
 import { ACCEPTED_IMAGE_TYPES } from "@/lib/constants";
 import { estimateNodeTokens, formatM } from "@/lib/estimates";
@@ -77,11 +78,9 @@ export function CropImageNode({ id, data, selected }: NodeProps<NextFlowNode>) {
                 // to its own block) so React Flow's handle measurement is
                 // untouched — see the Request-Inputs Reorder regression.
                 <div className="relative h-10 w-10">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN thumbnail, not worth next/image config here */}
-                  <img
+                  <ImagePreview
                     src={config.imageUrl}
-                    alt=""
-                    data-testid="crop-input-image-preview"
+                    testId="crop-input-image-preview"
                     className="h-10 w-10 rounded border border-card-border object-cover"
                   />
                   <button
@@ -161,8 +160,7 @@ export function CropImageNode({ id, data, selected }: NodeProps<NextFlowNode>) {
         <span className="text-[13px] text-text-strong">Output Image</span>
         <OutputBox testId="crop-output-image">
           {outputUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN thumbnail, not worth next/image config here
-            <img src={outputUrl} alt="" className="mx-auto h-16 rounded object-contain" />
+            <ImagePreview src={outputUrl} className="mx-auto h-16 rounded object-contain" />
           ) : undefined}
         </OutputBox>
         {outputImagePort && <PortRow port={outputImagePort} direction="output" />}
