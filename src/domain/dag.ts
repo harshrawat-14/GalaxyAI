@@ -152,21 +152,11 @@ export function validateGraph(graph: WorkflowGraph): ValidationResult {
   return { ok: true };
 }
 
-/** Upstream closure of a target set — used to resolve a single/partial run's deps. */
-export function ancestorsOf(graph: WorkflowGraph, targets: string[]): Set<string> {
-  const result = new Set<string>(targets);
-  const stack = [...targets];
-  while (stack.length) {
-    const cur = stack.pop()!;
-    for (const p of directParents(graph, cur)) {
-      if (!result.has(p)) {
-        result.add(p);
-        stack.push(p);
-      }
-    }
-  }
-  return result;
-}
+// NOTE: there is deliberately no upstream-closure ("ancestorsOf") helper here.
+// A single-node or multi-select run executes ONLY the nodes the user targeted —
+// the run scope is never widened to pull in dependencies. Values for an
+// out-of-scope parent come from its last successful output instead of a fresh
+// execution; see the orchestrator's getCachedOrManualOutput.
 
 export function nodeById(graph: WorkflowGraph, id: string): GraphNode | undefined {
   return graph.nodes.find((n) => n.id === id);

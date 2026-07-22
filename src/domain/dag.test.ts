@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  ancestorsOf,
   directChildren,
   directParents,
   incomingEdges,
@@ -232,27 +231,6 @@ describe("topologicalOrder", () => {
     const g = sampleGraph();
     g.edges.push(edge("cyclic", "gemini2", "response", "gemini1", "system_prompt"));
     expect(() => topologicalOrder(g)).toThrow(/cycle/i);
-  });
-});
-
-describe("ancestorsOf", () => {
-  it("returns the upstream closure including the targets themselves", () => {
-    const g = sampleGraph();
-    const ancestors = ancestorsOf(g, ["gemini2"]);
-    expect(ancestors).toEqual(new Set(["gemini2", "gemini1", "inputs"]));
-  });
-
-  it("merges closures across multiple targets", () => {
-    const g = sampleGraph();
-    const ancestors = ancestorsOf(g, ["crop1", "gemini1"]);
-    expect(ancestors).toEqual(new Set(["crop1", "gemini1", "inputs"]));
-  });
-
-  it("diamond closure: the join node's ancestors include both branches and the root, with no duplicates", () => {
-    const g = diamondGraph();
-    const ancestors = ancestorsOf(g, ["D"]);
-    expect(ancestors).toEqual(new Set(["D", "B", "C", "A"]));
-    expect(ancestors.size).toBe(4); // explicit no-dupes check
   });
 });
 

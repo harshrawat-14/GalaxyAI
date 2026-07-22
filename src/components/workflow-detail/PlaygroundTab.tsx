@@ -4,6 +4,7 @@ import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks";
 import { AlignLeft, Hash, Image as ImageIcon, PlayCircle, Search, SquareCheck, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OutputBox } from "@/components/canvas/controls";
+import { ImagePreview } from "@/components/ui/ImagePreview";
 import { nodeDisplayLabel, type RequestField, type RequestInputsConfig } from "@/domain/nodes";
 import type { NodeExecutionRecord, NodeStatus, WorkflowGraph, WorkflowRun } from "@/domain/types";
 import { estimateGraphTokens, estimateRunCredits, formatM } from "@/lib/estimates";
@@ -291,13 +292,30 @@ export function PlaygroundTab({ workflowId, graph }: { workflowId: string; graph
                   {field.type === "image_field" && (
                     <div className="mt-2 flex items-center gap-2">
                       {values[field.id] ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN thumbnail
-                        <img
-                          src={values[field.id] as string}
-                          alt={field.name}
-                          data-testid="playground-image-preview"
-                          className="h-12 w-12 rounded object-cover"
-                        />
+                        <div className="group relative w-full overflow-hidden rounded-lg border border-card-border bg-canvas-bg">
+                          <ImagePreview
+                            src={values[field.id] as string}
+                            alt={field.name}
+                            testId="playground-image-preview"
+                            className="h-32 w-full object-contain"
+                          />
+                          <label className="absolute inset-x-0 bottom-0 flex cursor-pointer items-center justify-center gap-1 bg-black/55 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                            <Upload size={11} />
+                            {uploading === field.id ? "Uploading…" : "Replace"}
+                            <input
+                              type="file"
+                              accept={ACCEPT_ATTR}
+                              data-testid="playground-image-replace-input"
+                              className="hidden"
+                              disabled={uploading === field.id}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = "";
+                                if (file) handleImageUpload(field.id, file);
+                              }}
+                            />
+                          </label>
+                        </div>
                       ) : (
                         <label className="flex cursor-pointer items-center gap-1 rounded bg-canvas-bg px-2 py-1.5 text-xs text-text-muted hover:bg-control-hover">
                           <Upload size={12} />

@@ -8,6 +8,7 @@ import { useOnClickOutside } from "@/hooks/useOnClickOutside";
 import { ACCEPTED_IMAGE_TYPES } from "@/lib/constants";
 import { UnsupportedImageTypeError, uploadImage } from "@/lib/uploadImage";
 import { useWorkflowStore, type NextFlowNode } from "@/store/workflow-store";
+import { ImagePreview } from "@/components/ui/ImagePreview";
 import { NodeInfoButton, NodeShell, PortRow } from "./NodeShell";
 
 const ACCEPT_ATTR = ACCEPTED_IMAGE_TYPES.map((ext) => `.${ext}`).join(",");
@@ -306,22 +307,39 @@ function RequestInputField({
       {field.type === "image_field" && (
         <div className="pl-3">
           {field.value ? (
-            <div className="relative h-10 w-10">
-              {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN thumbnail, not worth next/image config here */}
-              <img
+            // Full-width preview of the uploaded image, sized so the picture is
+            // actually legible on the card (a 40px thumbnail read as "no preview").
+            <div className="group relative overflow-hidden rounded-lg border border-card-border bg-canvas-bg">
+              <ImagePreview
                 src={field.value}
                 alt={field.name}
-                data-testid="image-field-preview"
-                className="h-10 w-10 rounded object-cover"
+                testId="image-field-preview"
+                className="h-24 w-full object-contain"
               />
+              <label className="absolute inset-x-0 bottom-0 flex cursor-pointer items-center justify-center gap-1 bg-black/55 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                <Upload size={11} />
+                {uploading ? "Uploading…" : "Replace"}
+                <input
+                  type="file"
+                  accept={ACCEPT_ATTR}
+                  data-testid="image-field-replace-input"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) onUpload(file);
+                  }}
+                />
+              </label>
               <button
                 type="button"
                 aria-label="Remove image"
                 data-testid="image-field-clear"
                 onClick={() => onSetValue(null)}
-                className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-700 text-white hover:bg-zinc-900"
+                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800/80 text-white hover:bg-zinc-900"
               >
-                <X size={10} />
+                <X size={11} />
               </button>
             </div>
           ) : (

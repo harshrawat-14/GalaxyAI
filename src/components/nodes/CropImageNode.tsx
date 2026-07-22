@@ -4,6 +4,7 @@ import type { NodeProps } from "@xyflow/react";
 import { Info, Plus, Upload, X } from "lucide-react";
 import { useState } from "react";
 import { SliderParam, OutputBox } from "@/components/canvas/controls";
+import { ImagePreview } from "@/components/ui/ImagePreview";
 import { getNodeSpec, type CropImageConfig } from "@/domain/nodes";
 import { ACCEPTED_IMAGE_TYPES } from "@/lib/constants";
 import { estimateNodeTokens, formatM } from "@/lib/estimates";
@@ -72,17 +73,24 @@ export function CropImageNode({ id, data, selected }: NodeProps<NextFlowNode>) {
             connected={isConnected}
             rightExtra={
               config.imageUrl ? (
-                <div className="relative h-6 w-6">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN thumbnail, not worth next/image config here */}
-                  <img src={config.imageUrl} alt="" data-testid="crop-input-image-preview" className="h-6 w-6 rounded object-cover" />
+                // Sized to actually show the picture; a 24px square read as
+                // "no preview". Stays inside the port row (rather than moving
+                // to its own block) so React Flow's handle measurement is
+                // untouched — see the Request-Inputs Reorder regression.
+                <div className="relative h-10 w-10">
+                  <ImagePreview
+                    src={config.imageUrl}
+                    testId="crop-input-image-preview"
+                    className="h-10 w-10 rounded border border-card-border object-cover"
+                  />
                   <button
                     type="button"
                     aria-label="Remove image"
                     data-testid="crop-input-image-clear"
                     onClick={() => updateNodeConfig(id, { imageUrl: null })}
-                    className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-zinc-700 text-white hover:bg-zinc-900"
+                    className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-800/90 text-white hover:bg-zinc-900"
                   >
-                    <X size={8} />
+                    <X size={10} />
                   </button>
                 </div>
               ) : (
@@ -152,8 +160,7 @@ export function CropImageNode({ id, data, selected }: NodeProps<NextFlowNode>) {
         <span className="text-[13px] text-text-strong">Output Image</span>
         <OutputBox testId="crop-output-image">
           {outputUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote CDN thumbnail, not worth next/image config here
-            <img src={outputUrl} alt="" className="mx-auto h-16 rounded object-contain" />
+            <ImagePreview src={outputUrl} className="mx-auto h-16 rounded object-contain" />
           ) : undefined}
         </OutputBox>
         {outputImagePort && <PortRow port={outputImagePort} direction="output" />}

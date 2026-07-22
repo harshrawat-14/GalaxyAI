@@ -1,5 +1,6 @@
 import { AbortTaskRunError } from "@trigger.dev/sdk";
 import { describe, expect, it } from "vitest";
+import { EmptyGeminiResponseError } from "@/lib/geminiErrors";
 import { runGeminiAttempt, type GeminiTaskPayload } from "./gemini.task";
 
 const PAYLOAD: GeminiTaskPayload = {
@@ -63,6 +64,25 @@ describe("runGeminiAttempt", () => {
     const result = await withSimulatedRetries(() => runGeminiAttempt(PAYLOAD, generate), 5);
     expect(result).toEqual({ text: "final answer" });
     expect(calls).toBe(3);
+  });
+
+  it("aborts (no retries) when the model returns an empty response — retrying yields the same empty candidate", async () => {
+    let calls = 0;
+    const generate = async () => {
+      calls += 1;
+      throw new EmptyGeminiResponseError("MAX_TOKENS");
+    };
+
+    await expect(withSimulatedRetries(() => runGeminiAttempt(PAYLOAD, generate), 5)).rejects.toBeInstanceOf(
+      AbortTaskRunError,
+    );
+    expect(calls).toBe(1);
+  });
+
+  it("surfaces the empty-response cause instead of recording a silent empty success", async () => {
+    await expect(
+      runGeminiAttempt(PAYLOAD, async () => Promise.reject(new EmptyGeminiResponseError("MAX_TOKENS"))),
+    ).rejects.toThrow(/maxOutputTokens/);
   });
 
   it("fails immediately on a permanent error, with zero retries attempted", async () => {

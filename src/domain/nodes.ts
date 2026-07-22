@@ -90,14 +90,31 @@ export type CropImageConfig = z.infer<typeof cropImageConfigSchema>;
 /* ------------------------------------------------------------------ */
 
 /**
- * Single source of truth for the default model id — swap this one line to
- * change models everywhere (defaultConfig, Zod default, the sample workflow).
- * Plain "gemini-3.1-pro" (no "-preview" suffix) isn't a real model id — the
- * actual API only exposes "gemini-3.1-pro-preview". Using "gemini-2.5-pro"
- * instead, confirmed working on the current (paid) key; see lib/constants.ts
- * re-export and the GEMINI_MODELS picker list.
+ * Picker list for the Gemini node's model dropdown — `id` is the real API
+ * model id sent to Google; `label` is the friendly name shown in the dropdown
+ * and node header (the reference app shows "Gemini 3.1 Pro", not the raw id).
+ *
+ * The first entry is the default (spec: "Default to Gemini 3.1 Pro"). The 3.x
+ * and 2.0 ids require a billing-enabled Google AI key — enabled by the account
+ * owner. NOTE: the Gemini-3 API id is the one thing not verified in-repo (no
+ * live call was made); if Google rejects it, swap the `id` below for whatever
+ * the AI Studio model list reports — it's the single source of truth here.
  */
-export const DEFAULT_GEMINI_MODEL = "gemini-2.5-pro";
+export const GEMINI_MODELS = [
+  { id: "gemini-3-pro-preview", label: "Gemini 3.1 Pro" },
+  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
+  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+] as const;
+
+/** Single source of truth for the default model id (first picker entry). */
+export const DEFAULT_GEMINI_MODEL = GEMINI_MODELS[0].id;
+
+/** Friendly label for a model id, falling back to the id itself for legacy/imported graphs. */
+export function geminiModelLabel(id: string): string {
+  return GEMINI_MODELS.find((m) => m.id === id)?.label ?? id;
+}
 
 // Gemini-valid generationConfig params only (docs/prompts/model-and-crop-nodes.md §3.2/§3.4)
 // — frequencyPenalty/presencePenalty/repetitionPenalty/minP/topA are OpenAI-only and
@@ -116,10 +133,13 @@ export const geminiConfigSchema = z.object({
   /** True -> generationConfig.responseMimeType = "application/json", else "text/plain". */
   jsonMode: z.boolean().default(false),
   /**
-   * True -> generationConfig.thinkingConfig.thinkingBudget left to the model; false -> 0.
-   * Defaults true because gemini-2.5-pro (the default model) has no "thinking off"
+   * True -> thinking is capped at half of maxOutputTokens; false -> disabled
+   * (0), or the 128-token floor on gemini-2.5-pro, which has no "thinking off"
    * mode — sending thinkingBudget:0 makes the API reject the call with
-   * "Budget 0 is invalid. This model only works in thinking mode."
+   * "Budget 0 is invalid. This model only works in thinking mode." Defaults
+   * true. The budget is never left to the model: thinking is billed against
+   * maxOutputTokens, so an uncapped budget can consume the whole allowance and
+   * return an empty response (see lib/gemini.ts thinkingBudgetFor).
    */
   reasoning: z.boolean().default(true),
   /** Collapsed-by-default Settings panel open/closed, persisted per node. */
@@ -270,6 +290,6 @@ export function getNodeSpec(kind: NodeKind): NodeSpec {
 
 /** Display name for a node instance — Gemini shows its selected model (same as its own card header), other kinds show their static spec label. */
 export function nodeDisplayLabel(kind: NodeKind, config: unknown): string {
-  if (kind === "gemini") return (config as GeminiConfig).model;
+  if (kind === "gemini") return geminiModelLabel((config as GeminiConfig).model);
   return getNodeSpec(kind).label;
 }

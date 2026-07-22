@@ -1,5 +1,5 @@
 import { defineConfig } from '@trigger.dev/sdk/v3'
-import { ffmpeg } from '@trigger.dev/build/extensions/core'
+import { ffmpeg, syncEnvVars } from '@trigger.dev/build/extensions/core'
 import { prismaExtension } from '@trigger.dev/build/extensions/prisma'
 
 export default defineConfig({
@@ -25,6 +25,17 @@ export default defineConfig({
   // Debian) — this extension regenerates the client for the deploy target
   // during the remote build instead of shipping the wrong-platform one.
   build: {
-    extensions: [ffmpeg(), prismaExtension({ mode: 'legacy', schema: 'prisma/schema.prisma' })],
+    extensions: [
+      ffmpeg(),
+      prismaExtension({ mode: 'legacy', schema: 'prisma/schema.prisma' }),
+      // The Gemini call runs inside a Trigger.dev task, so the key must live in
+      // the Trigger.dev environment (not just Vercel). The CLI has no `env set`,
+      // so we push GEMINI_API_KEY from the deploy shell at deploy time. Only
+      // pushed when present, so a deploy without it in-env leaves the value
+      // untouched rather than clearing it.
+      syncEnvVars(() =>
+        process.env.GEMINI_API_KEY ? [{ name: 'GEMINI_API_KEY', value: process.env.GEMINI_API_KEY }] : [],
+      ),
+    ],
   },
 })

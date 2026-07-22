@@ -81,7 +81,10 @@ export function buildSampleGraph(): WorkflowGraph {
           systemPrompt:
             "Condense the following product description into a tweet-length hook (under 240 characters).",
           temperature: 1,
-          maxOutputTokens: 512,
+          // Headroom for thinking models: on 2.5 half is reserved for thinking
+          // (lib/gemini.ts thinkingBudgetFor); on Gemini 3 the budget is left to
+          // the model, so keep enough room that the answer still fits.
+          maxOutputTokens: 2048,
           reasoning: true,
         },
       },
@@ -95,7 +98,7 @@ export function buildSampleGraph(): WorkflowGraph {
           systemPrompt:
             "You are a social media manager. Combine the tweet hook and the two product crops into a final marketing post.",
           temperature: 1,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 4096,
           reasoning: true,
         },
       },
