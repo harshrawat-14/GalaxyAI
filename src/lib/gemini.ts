@@ -37,13 +37,22 @@ export interface GeminiRequest {
   reasoning?: boolean;
 }
 
-// "Thinking" (generationConfig.thinkingConfig) is only documented for the
-// 2.5-series models — sending it to a 2.0 model would error, so it's only
-// ever included when the model id matches. The installed @google/generative-ai
-// SDK (0.21.0) predates this field in its own GenerationConfig type, but it
-// passes generationConfig straight through to the REST call as a plain
-// object (see node_modules/@google/generative-ai/dist/index.js), so a typed
-// extension object reaches the real API untouched.
+// "Thinking" via generationConfig.thinkingConfig.thinkingBudget is the
+// 2.5-series control — sending it to a 2.0 model errors, so it's only included
+// when the model id matches. The installed @google/generative-ai SDK (0.21.0)
+// predates this field in its own GenerationConfig type, but it passes
+// generationConfig straight through to the REST call as a plain object (see
+// node_modules/@google/generative-ai/dist/index.js), so a typed extension
+// object reaches the real API untouched.
+//
+// Gemini 3.x is deliberately NOT matched here: its thinking is controlled by
+// `thinkingLevel` (low/high), not the numeric `thinkingBudget`, and sending the
+// wrong field risks a 400 — unverified here since no live call was made against
+// the billed key. Gemini 3 therefore runs with its default thinking; the
+// EmptyGeminiResponseError guard below still catches a token-starved empty
+// response and fails loudly (telling the user to raise Max output tokens)
+// rather than silently succeeding. If Gemini 3 ever returns empty in testing,
+// that's the signal to add a `thinkingLevel: "low"` branch here.
 const THINKING_CAPABLE_MODEL = /2\.5/;
 
 /** gemini-2.5-pro has no "thinking off" mode — budget 0 is rejected outright. */

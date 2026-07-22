@@ -11,7 +11,7 @@ import {
   ToggleParam,
 } from "@/components/canvas/controls";
 import { estimateNodeTokens, formatM } from "@/lib/estimates";
-import { GEMINI_MODELS } from "@/lib/constants";
+import { GEMINI_MODELS, geminiModelLabel } from "@/lib/constants";
 import { getNodeSpec, type GeminiConfig } from "@/domain/nodes";
 import { useWorkflowStore, type NextFlowNode } from "@/store/workflow-store";
 import { NodeShell, PortRow } from "./NodeShell";
@@ -42,7 +42,7 @@ export function GeminiNode({ id, data, selected }: NodeProps<NextFlowNode>) {
     <NodeShell
       id={id}
       kind="gemini"
-      label={config.model}
+      label={geminiModelLabel(config.model)}
       status={data.status}
       selected={selected}
       executable={spec.executable}
@@ -59,8 +59,8 @@ export function GeminiNode({ id, data, selected }: NodeProps<NextFlowNode>) {
           className="mt-0.5 w-full rounded bg-canvas-bg px-2 py-1 text-xs text-text-strong"
         >
           {GEMINI_MODELS.map((model) => (
-            <option key={model} value={model}>
-              {model}
+            <option key={model.id} value={model.id}>
+              {model.label}
             </option>
           ))}
         </select>

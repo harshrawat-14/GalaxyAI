@@ -3,20 +3,10 @@
  * (Open/Closed — e.g. changing the default model touches one line).
  */
 
-import { DEFAULT_GEMINI_MODEL } from "@/domain/nodes";
+import { DEFAULT_GEMINI_MODEL, GEMINI_MODELS, geminiModelLabel } from "@/domain/nodes";
 
-/** Re-exported so every Gemini-model reference in the app traces back to one constant. */
-export { DEFAULT_GEMINI_MODEL };
-
-/**
- * Picker list for the Gemini node's model dropdown. Plain "gemini-3.1-pro"
- * (the id implied by the node's label) isn't a real model id — the API only
- * has "gemini-3.1-pro-preview". "gemini-2.0-flash"/"gemini-2.0-flash-lite"
- * return RESOURCE_EXHAUSTED with limit:0 on the current key (no quota at
- * all, not just exhausted); "gemini-2.5-pro" and "gemini-2.5-flash-lite" are
- * confirmed working, so those are the two real options.
- */
-export const GEMINI_MODELS = [DEFAULT_GEMINI_MODEL, "gemini-2.5-flash-lite"] as const;
+/** Re-exported so every Gemini-model reference in the app traces back to the domain registry. */
+export { DEFAULT_GEMINI_MODEL, GEMINI_MODELS, geminiModelLabel };
 
 /** Mandatory artificial delay on Crop Image (spec hard requirement). */
 export const CROP_ARTIFICIAL_DELAY_SECONDS = 30;
